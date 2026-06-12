@@ -1,5 +1,3 @@
-using System.Text;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -13,6 +11,7 @@ using PORMS.Application.Common.Events;
 using PORMS.Application.Common.Interfaces;
 using PORMS.Application.Services.Alert;
 using PORMS.Application.Services.Mode;
+using PORMS.Application.Services.Auths;
 using PORMS.Application.Services.Risk;
 using PORMS.Application.Services.Sop;
 using PORMS.Application.Services.Tasks;
@@ -20,7 +19,10 @@ using PORMS.Application.Services.Weather;
 using PORMS.Domain.Enums;
 using PORMS.Infrastructure.Data;
 using PORMS.Infrastructure.Events;
+using PORMS.Infrastructure.Security;
 using PORMS.Infrastructure.Weather;
+using System.Text;
+using System.Text.Json.Serialization;
 
 DotEnv.Load();
 
@@ -71,6 +73,10 @@ builder.Services.AddScoped<IAlertService, AlertService>();
 builder.Services.AddScoped<ITaskGeneratorService, TaskGeneratorService>();
 builder.Services.AddScoped<ISopEngine, SopEngine>();
 builder.Services.AddScoped<IDomainEventPublisher, SopDomainEventPublisher>();
+builder.Services.AddScoped<IDomainEventPublisher, LoggingDomainEventPublisher>();
+builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddHttpClient("OpenWeather", (serviceProvider, client) =>
 {
@@ -83,7 +89,7 @@ builder.Services.AddHttpClient("OpenWeather", (serviceProvider, client) =>
     client.Timeout = TimeSpan.FromSeconds(configuration.GetValue("OpenWeather:TimeoutSeconds", 10));
 });
 
-builder.Services.AddHostedService<WeatherUpdateWorker>();
+//builder.Services.AddHostedService<WeatherUpdateWorker>();
 
 builder.Services.AddCors(options =>
 {
