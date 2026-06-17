@@ -1,2 +1,1 @@
-export interface WeatherSnapshot {}
-
+export type { WeatherSnapshot } from '@/types/port.types'

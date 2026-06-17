@@ -9,10 +9,28 @@
   --color-brand: #1b6ca8;
   --color-surface: #f1f5f9;
 
-  --color-risk-low: #22c55e;
-  --color-risk-medium: #eab308;
-  --color-risk-high: #f97316;
-  --color-risk-critical: #ef4444;
+  --color-risk-low: #27ae60;
+  --color-risk-medium: #f39c12;
+  --color-risk-high: #e67e22;
+  --color-risk-critical: #c0392b;
+
+  --color-mode-normal: #27ae60;
+  --color-mode-limited: #f39c12;
+  --color-mode-stop: #c0392b;
+}
+
+@keyframes risk-critical-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(192 57 43 / 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgb(192 57 43 / 0);
+  }
+}
+
+.risk-critical-pulse {
+  animation: risk-critical-pulse 1.5s ease-in-out infinite;
 }
 
 html,
@@ -25,4 +43,14 @@ body {
   font-family: var(--font-sans);
   color: #0f172a;
   background: var(--color-surface);
+}
+
+@keyframes risk-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(192 57 43 / 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgb(192 57 43 / 0);
+  }
 }
