@@ -1,0 +1,71 @@
+@startuml
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam dpi 180
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowThickness 1
+skinparam sequenceLifeLineBorderColor #555555
+skinparam sequenceLifeLineBackgroundColor white
+skinparam participantBorderColor #555555
+skinparam participantBackgroundColor #F7F7F7
+skinparam participantFontColor #222222
+skinparam actorBorderColor #555555
+skinparam actorFontColor #222222
+skinparam groupBorderColor #777777
+skinparam groupBackgroundColor #FFFDEB
+skinparam noteBorderColor #C5A000
+skinparam noteBackgroundColor #FFF8CC
+hide footbox
+autonumber
+
+actor SYSTEM
+participant "WeatherUpdateWorker" as Worker
+database "PostgreSQL\n(ApplicationDbContext)" as DB
+participant "OpenWeatherService" as Weather
+participant "OpenWeather API" as API
+participant "RiskEngine" as Risk
+
+SYSTEM -> Worker : Trigger scheduled cycle (every 15 minutes)
+activate Worker
+Worker -> DB : Query active ports
+DB --> Worker : Active port list
+
+loop For each active port
+  Worker -> DB : Insert WeatherFetchJob(PENDING)
+  DB --> Worker : Fetch job saved
+  Worker -> Weather : FetchCurrentWeatherAsync(port)
+  activate Weather
+
+  loop Maximum 3 retries for network/5xx errors
+    Weather -> API : GET /weather?lat&lon&units=metric
+    activate API
+    API --> Weather : HTTP response + JSON payload
+    deactivate API
+  end
+
+  alt Successful response
+    Weather -> Weather : Normalize units and calculate Beaufort
+    Weather --> Worker : WeatherReading
+    deactivate Weather
+    Worker -> DB : Save reading, SUCCESS job,\nWEATHER_FETCHED event
+    DB --> Worker : Commit successful
+    Worker -> Risk : EvaluateRiskAsync(reading)
+    Risk --> Worker : RiskAssessment
+  else Timeout, network, API or database failure
+    Weather --> Worker : OpenWeatherException / failure
+    deactivate Weather
+    Worker -> DB : Update fetch job to FAILED\n(status, response time, error)
+    DB --> Worker : Failure recorded
+    note over Worker
+      Log the port failure and continue
+      with the next active port.
+    end note
+  end
+end
+
+deactivate Worker
+@enduml

@@ -1,5 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PORMS.API.Extensions;
+using PORMS.Application.Common;
 using PORMS.Application.Common.Interfaces;
 using PORMS.Application.DTOs.Mode;
 using PORMS.Application.Services.Mode;
@@ -8,6 +11,7 @@ namespace PORMS.API.Controllers;
 
 [ApiController]
 [Route("api/ports/{portId:guid}/mode")]
+[Authorize]
 public sealed class OperationModeController : ControllerBase
 {
     private const int DefaultPageSize = 20;
@@ -31,6 +35,11 @@ public sealed class OperationModeController : ControllerBase
         Guid portId,
         CancellationToken cancellationToken)
     {
+        if (!HttpContext.IsAuthorizedForPort(portId))
+        {
+            return Forbid();
+        }
+
         var port = await _dbContext.Ports
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == portId, cancellationToken);
@@ -56,6 +65,11 @@ public sealed class OperationModeController : ControllerBase
         [FromQuery] int pageSize = DefaultPageSize,
         CancellationToken cancellationToken = default)
     {
+        if (!HttpContext.IsAuthorizedForPort(portId))
+        {
+            return Forbid();
+        }
+
         page = NormalizePage(page);
         pageSize = NormalizePageSize(pageSize);
 
@@ -90,19 +104,25 @@ public sealed class OperationModeController : ControllerBase
     }
 
     [HttpPost("override")]
+    [Authorize(Policy = "AdminOrCompanyAdmin")]
     [ProducesResponseType<OperationModeLogDto>(StatusCodes.Status200OK)]
     public async Task<ActionResult<OperationModeLogDto>> OverrideAsync(
         Guid portId,
         [FromBody] OverrideModeRequest request,
         CancellationToken cancellationToken)
     {
+        if (!HttpContext.IsAuthorizedForPort(portId))
+        {
+            return Forbid();
+        }
+
         try
         {
             var log = await _operationModeService.OverrideModeAsync(
                 portId,
                 request.TargetMode,
                 request.OverrideReason,
-                request.UserId,
+                GetCurrentUserId(),
                 cancellationToken);
 
             return Ok(new OperationModeLogDto(
@@ -126,6 +146,14 @@ public sealed class OperationModeController : ControllerBase
         {
             return BadRequest(exception.Message);
         }
+    }
+
+    private Guid GetCurrentUserId()
+    {
+        var claim = User.FindFirst(ClaimNames.UserId)?.Value;
+        return Guid.TryParse(claim, out var id)
+            ? id
+            : throw new UnauthorizedAccessException("User id claim missing or invalid.");
     }
 
     private static int NormalizePage(int page) => page < 1 ? 1 : page;

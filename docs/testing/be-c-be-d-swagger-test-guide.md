@@ -521,3 +521,102 @@ If risk returns to LOW but currentMode is still STOP, decision-support still ret
 This is intentional: the system does not automatically resume real operations after a risky condition.
 Company Admin should review conditions and use manual mode override if appropriate.
 ```
+# Demo API nhanh cho hội đồng
+
+Đăng nhập trước, bấm **Authorize** trong Swagger và nhập:
+
+```text
+Bearer <access_token>
+```
+
+Port demo hiện tại:
+
+```text
+09674fa3-1136-490d-8a0f-a980f0065e05
+```
+
+## 1. Xem trạng thái tổng hợp của cảng
+
+```http
+GET /api/ports/09674fa3-1136-490d-8a0f-a980f0065e05/live-status
+```
+
+Trong màn hình diễn tập, thêm `includeSimulation=true` để xem dữ liệu giả lập:
+
+```http
+GET /api/ports/09674fa3-1136-490d-8a0f-a980f0065e05/live-status?includeSimulation=true
+```
+
+Kết quả gồm thời tiết mới nhất, risk, mode, khuyến nghị vận hành, SOP và số cảnh báo chưa đọc.
+
+## 2. Chạy diễn tập bão
+
+```http
+POST /api/ports/09674fa3-1136-490d-8a0f-a980f0065e05/simulation/trigger-scenario
+```
+
+```json
+{
+  "scenarioName": "Council emergency storm drill",
+  "speedMultiplier": 100,
+  "weatherSnapshots": [
+    {
+      "windSpeedMs": 4,
+      "rainfall1hMm": 0,
+      "visibilityKm": 12,
+      "temperatureC": 30,
+      "humidityPct": 70,
+      "observedAt": "2026-06-15T08:00:00Z"
+    },
+    {
+      "windSpeedMs": 11,
+      "rainfall1hMm": 12,
+      "visibilityKm": 8,
+      "temperatureC": 29,
+      "humidityPct": 76,
+      "observedAt": "2026-06-15T08:15:00Z"
+    },
+    {
+      "windSpeedMs": 18,
+      "rainfall1hMm": 30,
+      "visibilityKm": 4,
+      "temperatureC": 28,
+      "humidityPct": 82,
+      "observedAt": "2026-06-15T08:30:00Z"
+    },
+    {
+      "windSpeedMs": 26,
+      "rainfall1hMm": 55,
+      "visibilityKm": 0.8,
+      "temperatureC": 27,
+      "humidityPct": 90,
+      "observedAt": "2026-06-15T08:45:00Z"
+    },
+    {
+      "windSpeedMs": 8,
+      "rainfall1hMm": 4,
+      "visibilityKm": 15,
+      "temperatureC": 29,
+      "humidityPct": 74,
+      "observedAt": "2026-06-15T09:00:00Z"
+    }
+  ]
+}
+```
+
+Lấy `id` trả về để theo dõi:
+
+```http
+GET /api/simulation/status?sessionId=<id>
+GET /api/simulation/<id>/results
+```
+
+## 3. Xem alert và task do mô phỏng sinh ra
+
+```http
+GET /api/ports/09674fa3-1136-490d-8a0f-a980f0065e05/alerts?includeSimulation=true
+GET /api/ports/09674fa3-1136-490d-8a0f-a980f0065e05/tasks?includeSimulation=true
+PUT /api/alerts/<alertId>/read
+```
+
+Lưu ý: schema hiện tại định nghĩa `task_logs` là nhật ký khuyến nghị bất biến, chưa có cột trạng thái. Vì vậy chưa thể lọc `PENDING` hoặc `COMPLETED` cho tới khi nhóm duyệt migration quản lý vòng đời task.

@@ -217,7 +217,7 @@ prefect deploy --all
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@porms.vn | Admin@123 |
+| Admin | admin@porms.vn | Admin@2026! |
 | Company Admin | cadmin@danangport.vn | Admin@123 |
 | Operator | operator@danangport.vn | Admin@123 |
 

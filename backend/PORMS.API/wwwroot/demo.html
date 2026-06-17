@@ -1,0 +1,2160 @@
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PORMS - Port Decision Support Demo</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar: #1e1e2d;
+            --sidebar-2: #171724;
+            --sidebar-active: #31314b;
+            --page: #f5f5f9;
+            --panel: #ffffff;
+            --line: #e2e5ee;
+            --ink: #142637;
+            --muted: #6e8291;
+            --blue: #1875b4;
+            --low: #159a67;
+            --medium: #d38a0a;
+            --high: #e36520;
+            --critical: #d9363e;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--page);
+            color: var(--ink);
+            font-family: Inter, "Segoe UI", Arial, sans-serif;
+            letter-spacing: 0;
+        }
+
+        .app-shell {
+            min-height: 100vh;
+            display: flex;
+            background: var(--page);
+        }
+
+        .sidebar {
+            position: fixed;
+            inset: 0 auto 0 0;
+            width: 260px;
+            background: #1e1e2d;
+            color: #dbe9f2;
+            padding: 24px 18px;
+            z-index: 1020;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 0 8px 22px;
+            border-bottom: 1px solid rgba(255,255,255,.12);
+        }
+
+        .brand-mark {
+            width: 42px;
+            height: 42px;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            background: #3182ce;
+            color: white;
+            font-weight: 800;
+            font-size: 20px;
+            flex: 0 0 auto;
+        }
+
+        .brand strong { display: block; color: #fff; font-size: 16px; }
+        .brand small { color: #8fb0c4; font-size: 11px; }
+
+        .nav-label {
+            padding: 20px 10px 7px;
+            color: #83a2b6;
+            text-transform: uppercase;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: .08em;
+        }
+
+        .side-link {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            color: #bed0dc;
+            background: transparent;
+            border: 0;
+            text-align: left;
+            padding: 12px 12px;
+            border-radius: 7px;
+            margin: 3px 0;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .side-link.active,
+        .side-link:hover {
+            color: #fff;
+            background: var(--sidebar-active);
+        }
+
+        .side-link i {
+            width: 19px;
+            text-align: center;
+            font-size: 15px;
+        }
+
+        .sidebar-foot {
+            margin-top: auto;
+            padding: 15px 10px 0;
+            border-top: 1px solid rgba(255,255,255,.12);
+            font-size: 12px;
+        }
+
+        .main {
+            margin-left: 260px;
+            min-height: 100vh;
+            width: calc(100% - 260px);
+        }
+
+        .topbar {
+            height: 56px;
+            background: #fff;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 18px;
+            position: sticky;
+            top: 0;
+            z-index: 1010;
+        }
+
+        .topbar-title { font-size: 13px; font-weight: 800; }
+        .topbar-title span { color: var(--muted); font-weight: 500; margin-left: 6px; }
+
+        .account-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--line);
+            background: #f8fafc;
+            color: #26384a;
+            border-radius: 999px;
+            padding: 8px 11px;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .simulation-header-badge {
+            display: none;
+            align-items: center;
+            gap: 7px;
+            border-radius: 999px;
+            padding: 8px 12px;
+            background: #ffe2e5;
+            color: #b4232b;
+            border: 1px solid #ffb3ba;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .simulation-header-badge.running {
+            display: inline-flex;
+            animation: blink .75s infinite;
+        }
+
+        .content {
+            padding: 18px 18px 24px;
+            max-width: 1280px;
+        }
+
+        .page-title { font-weight: 800; margin: 0; font-size: 22px; }
+        .page-subtitle { color: var(--muted); margin: 5px 0 0; font-size: 12px; max-width: 620px; }
+
+        .view-page { animation: viewIn .14s ease-out; }
+        @keyframes viewIn {
+            from { opacity: .55; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(20, 45, 62, .04);
+        }
+
+        .panel-head {
+            padding: 17px 18px;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .panel-title { margin: 0; font-size: 15px; font-weight: 800; }
+        .panel-subtitle { color: var(--muted); font-size: 11px; margin-top: 3px; }
+        .panel-body { padding: 18px; }
+
+        .metric {
+            min-height: 126px;
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-left: 4px solid var(--blue);
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .metric.rain { border-left-color: #5b8def; }
+        .metric.visibility { border-left-color: #7256d8; }
+        .metric.temperature { border-left-color: #e77832; }
+
+        .metric-label {
+            color: var(--muted);
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-transform: uppercase;
+            font-weight: 800;
+        }
+
+        .metric-value { font-size: 28px; font-weight: 850; margin-top: 12px; line-height: 1; }
+        .metric-note { color: var(--muted); font-size: 11px; margin-top: 11px; }
+
+        .wind-metric {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .wind-dial {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            border: 1px solid #d7e3ed;
+            background: radial-gradient(circle at center, #fff 0 35%, #edf5fb 36% 100%);
+            display: grid;
+            place-items: center;
+            position: relative;
+            flex: 0 0 auto;
+        }
+
+        .wind-dial::before {
+            content: "N";
+            position: absolute;
+            top: 4px;
+            font-size: 9px;
+            font-weight: 900;
+            color: #6e8291;
+        }
+
+        .wind-needle {
+            width: 4px;
+            height: 36px;
+            border-radius: 999px;
+            background: linear-gradient(#d9363e 0 50%, #20364b 50% 100%);
+            transform-origin: 50% 50%;
+            transition: transform .35s ease;
+        }
+
+        .decision-band {
+            background: linear-gradient(120deg, #123e58, #155c76);
+            color: #fff;
+            padding: 26px;
+            min-height: 256px;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .decision-band::after {
+            content: "";
+            position: absolute;
+            width: 220px;
+            height: 220px;
+            border: 36px solid rgba(255,255,255,.055);
+            border-radius: 50%;
+            right: -36px;
+            top: -60px;
+        }
+
+        .decision-kicker {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #a9cedc;
+            font-weight: 800;
+            letter-spacing: .02em;
+        }
+
+        .risk-word { font-size: 46px; line-height: 1; font-weight: 900; margin: 15px 0; }
+        .decision-code { font-size: 21px; font-weight: 800; margin-bottom: 8px; }
+        .decision-text { color: #d6e7ee; font-size: 14px; max-width: 880px; line-height: 1.55; }
+
+        .mode-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 11px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.13);
+            font-size: 11px;
+            font-weight: 800;
+            margin-top: 16px;
+        }
+
+        .risk-badge,
+        .severity-badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 5px 9px;
+            font-size: 10px;
+            font-weight: 850;
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+
+        .level-LOW { background: #e2f7ef; color: #087d51; border-color: #bce8d7; }
+        .level-MEDIUM,
+        .level-WARNING { background: #fff4d9; color: #9a6500; border-color: #efd69a; }
+        .level-HIGH { background: #fff0e5; color: #c6530e; border-color: #f5c8a8; }
+        .level-CRITICAL { background: #ffe7e8; color: #b9232c; border-color: #f4b7bb; }
+        .level-INFO { background: #e8f3fb; color: #17628e; border-color: #bddbeb; }
+
+        .alert-item,
+        .task-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 13px;
+            padding: 14px 0;
+            border-bottom: 1px solid #edf1f4;
+            align-items: start;
+        }
+
+        .alert-item:last-child,
+        .task-item:last-child { border-bottom: 0; }
+
+        .alert-item.unread {
+            background: #fff8e8;
+            border: 1px solid #f2d79d;
+            border-radius: 8px;
+            padding: 14px;
+            margin: 10px 0;
+        }
+
+        .alert-item.unread + .alert-item.unread { margin-top: 0; }
+
+        .alert-icon {
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            border-radius: 7px;
+            background: #f4f7f9;
+        }
+
+        .item-title { font-size: 13px; font-weight: 800; margin-bottom: 3px; }
+        .item-text { font-size: 12px; color: var(--muted); line-height: 1.45; }
+        .item-time { font-size: 10px; color: #8b9ca8; margin-top: 5px; }
+
+        .crisis-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 18px;
+        }
+
+        .simulation-panel {
+            background: #fff;
+            color: #fff;
+            border: 1px solid var(--line);
+            min-height: 0;
+        }
+
+        .simulation-panel .panel-head { display: none; }
+
+        .simulation-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 344px;
+            gap: 12px;
+        }
+
+        .scenario-card {
+            min-height: 276px;
+            background: linear-gradient(135deg, #103f58, #175f7a);
+            border-radius: 8px;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .sim-config-card {
+            min-height: 276px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 18px;
+            color: var(--ink);
+        }
+
+        .simulation-log {
+            margin-top: 12px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            min-height: 204px;
+            color: var(--ink);
+        }
+
+        .sim-status {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            color: #b9d7e4;
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 800;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #70c9a3;
+        }
+
+        .status-dot.running {
+            background: #ffb547;
+            box-shadow: 0 0 0 6px rgba(255,181,71,.15);
+            animation: pulse 1.1s infinite;
+        }
+
+        .guard-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            border-radius: 999px;
+            padding: 7px 11px;
+            background: rgba(255, 181, 71, .18);
+            border: 1px solid rgba(255, 181, 71, .45);
+            color: #ffcf7b;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .guard-badge.running { animation: blink .85s infinite; }
+        @keyframes pulse { 50% { opacity: .45; } }
+        @keyframes blink { 50% { opacity: .42; } }
+
+        .scenario-title { font-size: 21px; font-weight: 900; margin: 12px 0 11px; }
+        .scenario-copy { color: #d0e3ec; font-size: 11px; line-height: 1.55; max-width: 690px; }
+
+        .sim-progress {
+            height: 10px;
+            background: rgba(255,255,255,.14);
+            border-radius: 999px;
+            overflow: hidden;
+            margin: 22px 0 7px;
+        }
+
+        .sim-progress > div {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, #70c9a3, #ffb547, #ff6b6b);
+            transition: width .35s ease;
+        }
+
+        .snapshot-track {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .snapshot {
+            background: rgba(255,255,255,.08);
+            padding: 10px 8px;
+            border-radius: 6px;
+            text-align: center;
+            color: #c3dbe6;
+            font-size: 11px;
+        }
+
+        .snapshot.active { background: #ffb547; color: #172d39; font-weight: 900; }
+        .snapshot.done { background: #2a8b70; color: #fff; }
+
+        .guard {
+            display: flex;
+            gap: 10px;
+            padding: 13px 14px;
+            border-radius: 7px;
+            background: #e7f6ef;
+            border: 1px solid #bce5d2;
+            color: #176c4e;
+            font-size: 11px;
+            line-height: 1.45;
+        }
+
+        .sim-field {
+            margin-bottom: 12px;
+        }
+
+        .sim-field label {
+            color: #506375;
+            font-size: 11px;
+            font-weight: 800;
+            margin-bottom: 5px;
+        }
+
+        .sim-field .form-control {
+            height: 34px;
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .preset-btn {
+            border: 1px solid #d7e1eb;
+            background: #f8fafc;
+            color: #33475b;
+            border-radius: 6px;
+            padding: 7px 6px;
+            font-size: 10px;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        .preset-btn.active,
+        .preset-btn:hover {
+            background: #e9f3fc;
+            border-color: #82bce6;
+            color: #0f6da6;
+        }
+
+        .simulation-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px 10px;
+        }
+
+        .simulation-form-grid .sim-field {
+            margin-bottom: 0;
+        }
+
+        .sim-summary {
+            background: #f3f6f9;
+            border-radius: 7px;
+            padding: 14px;
+            font-size: 11px;
+            color: #708191;
+            margin: 12px 0 14px;
+        }
+
+        .simulation-log-body {
+            min-height: 140px;
+            display: grid;
+            place-items: center;
+            color: #798b9a;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .threshold-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 360px;
+            gap: 14px;
+            align-items: start;
+        }
+
+        .threshold-stack {
+            display: grid;
+            gap: 12px;
+        }
+
+        .threshold-card,
+        .risk-preview-card,
+        .decision-guide-card {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        .threshold-card {
+            padding: 18px;
+        }
+
+        .threshold-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 900;
+            margin-bottom: 4px;
+        }
+
+        .threshold-subtitle {
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .threshold-row {
+            display: grid;
+            grid-template-columns: 128px minmax(0, 1fr) 72px;
+            gap: 14px;
+            align-items: center;
+            padding: 12px 0;
+            border-top: 1px solid #eef2f6;
+        }
+
+        .threshold-row label {
+            margin: 0;
+            color: #263845;
+            font-size: 12px;
+            font-weight: 850;
+        }
+
+        .threshold-row input[type="range"] {
+            accent-color: #3478ad;
+        }
+
+        .threshold-row input[type="number"] {
+            height: 34px;
+            text-align: center;
+            font-weight: 800;
+        }
+
+        .risk-preview-card,
+        .decision-guide-card {
+            padding: 18px;
+        }
+
+        .preview-result-box {
+            border: 1px solid #f2c8a5;
+            background: #fff2e6;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 14px;
+        }
+
+        .preview-result-box.low { border-color: #bce8d7; background: #e8f8f0; }
+        .preview-result-box.medium { border-color: #efd69a; background: #fff8df; }
+        .preview-result-box.high { border-color: #f5c8a8; background: #fff2e6; }
+        .preview-result-box.critical { border-color: #f4b7bb; background: #ffebed; }
+
+        .preview-level {
+            font-size: 30px;
+            font-weight: 950;
+            letter-spacing: .02em;
+            line-height: 1;
+        }
+
+        .preview-reason {
+            font-size: 12px;
+            color: #715f52;
+            margin-top: 8px;
+        }
+
+        .decision-guide {
+            display: grid;
+            gap: 8px;
+        }
+
+        .decision-guide-row {
+            display: grid;
+            grid-template-columns: 92px 1fr;
+            gap: 10px;
+            align-items: start;
+            padding: 9px 0;
+            border-top: 1px solid #eef2f6;
+            font-size: 12px;
+            color: #5a6c7b;
+        }
+
+        .sim-risk-preview {
+            border-radius: 7px;
+            padding: 12px;
+            margin: 12px 0 14px;
+            border: 1px solid #d8e3ed;
+            background: #f8fafc;
+            font-size: 11px;
+        }
+
+        .sim-risk-preview strong {
+            font-size: 15px;
+        }
+
+        .api-message {
+            position: fixed;
+            top: 82px;
+            right: 22px;
+            width: min(430px, calc(100vw - 32px));
+            z-index: 1090;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--muted);
+            padding: 28px 10px;
+            font-size: 12px;
+        }
+
+        .btn { border-radius: 6px; font-weight: 700; font-size: 12px; }
+        .btn-primary { background: var(--blue); border-color: var(--blue); }
+        .form-control,
+        .form-select { border-radius: 6px; font-size: 12px; }
+
+        .auth-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(7, 28, 41, .9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-overlay.show { display: flex; }
+
+        .auth-box {
+            width: min(440px, 100%);
+            background: #fff;
+            border-radius: 9px;
+            padding: 28px;
+            box-shadow: 0 24px 80px rgba(0,0,0,.3);
+        }
+
+        @media (max-width: 1100px) {
+            .crisis-layout { grid-template-columns: 1fr; }
+            .threshold-layout { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 991.98px) {
+            .sidebar {
+                width: 78px;
+                padding: 18px 9px;
+                align-items: center;
+            }
+            .sidebar .brand-copy,
+            .sidebar .nav-label,
+            .sidebar .side-link span,
+            .sidebar-foot { display: none; }
+            .brand {
+                padding: 0 0 18px;
+                border: 0;
+            }
+            .side-link {
+                justify-content: center;
+                padding: 12px;
+            }
+            .main {
+                margin-left: 78px;
+                width: calc(100% - 78px);
+            }
+            .content { padding: 18px; }
+        }
+
+        @media (max-width: 575.98px) {
+            .app-shell { display: block; }
+            .sidebar {
+                position: sticky;
+                top: 0;
+                width: 100%;
+                height: auto;
+                flex-direction: row;
+                gap: 8px;
+                padding: 8px;
+                overflow-x: auto;
+            }
+            .brand { display: none; }
+            .side-link {
+                width: auto;
+                min-width: 48px;
+                flex: 0 0 auto;
+            }
+            .main {
+                margin-left: 0;
+                width: 100%;
+            }
+            .topbar { padding: 0 14px; }
+            .topbar-title span,
+            #clock { display: none; }
+            .topbar .btn-primary {
+                width: 42px;
+                height: 38px;
+                padding: 0;
+                font-size: 0;
+            }
+            .topbar .btn-primary i {
+                margin: 0 !important;
+                font-size: 16px;
+            }
+            .content { padding: 15px; }
+            .risk-word { font-size: 36px; }
+            .snapshot-track {
+                grid-template-columns: repeat(5, minmax(70px, 1fr));
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-mark">P</div>
+            <div class="brand-copy">
+                <strong>PORMS</strong>
+                <small>Port Decision Support</small>
+            </div>
+        </div>
+
+        <div class="nav-label">Vận hành</div>
+        <button class="side-link active" type="button" data-view-target="dashboard">
+            <i class="bi bi-grid-fill"></i><span>Real-time Dashboard</span>
+        </button>
+        <button class="side-link" type="button" data-view-target="alerts">
+            <i class="bi bi-bell-fill"></i><span>Trung tâm Cảnh báo</span>
+        </button>
+        <button class="side-link" type="button" data-view-target="riskConfig">
+            <i class="bi bi-sliders"></i><span>Ngưỡng rủi ro</span>
+        </button>
+        <button class="side-link" type="button" data-view-target="simulation">
+            <i class="bi bi-gear-wide-connected"></i><span>Cấu hình Diễn tập</span>
+        </button>
+
+        <div class="sidebar-foot">
+            <div class="fw-bold text-white">Demo Council Mode</div>
+            <div class="text-white-50 mt-1">ASP.NET Core 8</div>
+        </div>
+    </aside>
+
+    <main class="main">
+        <header class="topbar">
+            <div>
+                <div class="topbar-title"><span id="topbarModule">Trung tâm điều hành</span> <span id="portNameTop">Cảng Tiên Sa - Đà Nẵng</span></div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="simulation-header-badge" id="simHeaderBadge">
+                    <i class="bi bi-broadcast-pin"></i>CHẾ ĐỘ MÔ PHỎNG: DỮ LIỆU CÁCH LY (SIMULATION GUARD ACTIVE)
+                </span>
+                <span class="account-pill">
+                    <i class="bi bi-person-circle"></i><span id="accountEmail">admin@porms.vn</span>
+                </span>
+                <span class="badge text-bg-light border" id="clock">--:--:--</span>
+                <button class="btn btn-primary" id="refreshBtn" title="Làm mới dữ liệu">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Làm mới
+                </button>
+                <button class="btn btn-outline-secondary" id="settingsBtn" title="Thiết lập kết nối">
+                    <i class="bi bi-person-gear"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="api-message" id="messageArea"></div>
+
+        <div class="content">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+                <div>
+                    <h1 class="page-title" id="pageTitle">Real-time Dashboard</h1>
+                    <p class="page-subtitle" id="pageSubtitle">
+                        Theo dõi trạng thái thời tiết, rủi ro và khuyến nghị vận hành theo thời gian thực.
+                    </p>
+                </div>
+                <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <span class="risk-badge level-INFO"><i class="bi bi-broadcast me-1"></i>Polling 3 giây</span>
+                    <span class="risk-badge level-LOW" id="connectionBadge">Đang kết nối</span>
+                </div>
+            </div>
+
+            <section class="view-page" id="view-dashboard" data-view="dashboard">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <div class="metric">
+                            <div class="metric-label"><span>Tốc độ gió</span><i class="bi bi-wind"></i></div>
+                            <div class="wind-metric">
+                                <div>
+                                    <div class="metric-value"><span id="windValue">--</span> <small class="fs-6">m/s</small></div>
+                                    <div class="metric-note">Hướng gió: <strong id="windDirectionValue">--</strong> · Beaufort <strong id="beaufortValue">--</strong></div>
+                                </div>
+                                <div class="wind-dial" title="Hướng gió">
+                                    <div class="wind-needle" id="windNeedle"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric rain">
+                            <div class="metric-label"><span>Lượng mưa</span><i class="bi bi-cloud-rain-fill"></i></div>
+                            <div class="metric-value"><span id="rainValue">--</span> <small class="fs-6">mm/h</small></div>
+                            <div class="metric-note">Quan trắc một giờ gần nhất</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric visibility">
+                            <div class="metric-label"><span>Tầm nhìn</span><i class="bi bi-eye-fill"></i></div>
+                            <div class="metric-value"><span id="visibilityValue">--</span> <small class="fs-6">km</small></div>
+                            <div class="metric-note" id="weatherSource">Đang chờ dữ liệu</div>
+                        </div>
+                    </div>
+                    <span class="d-none" id="temperatureValue">--</span>
+                    <span class="d-none" id="humidityValue">--</span>
+                </div>
+
+                <div class="decision-band">
+                    <div class="decision-kicker">Khuyến nghị hỗ trợ quyết định</div>
+                    <div class="d-flex flex-wrap align-items-end gap-3">
+                        <div class="risk-word" id="riskValue">--</div>
+                        <span class="risk-badge level-INFO mb-1" id="riskBadge">NO DATA</span>
+                    </div>
+                    <div class="decision-code" id="decisionCode">Đang tải trạng thái cảng...</div>
+                    <div class="decision-text" id="decisionText">Hệ thống đang tổng hợp dữ liệu Weather, Risk và Operation Mode.</div>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <span class="mode-chip"><i class="bi bi-shield-check"></i>Mode: <strong id="modeValue">--</strong></span>
+                        <span class="mode-chip"><i class="bi bi-database-check"></i>Data: <strong id="dataModeValue">REAL DATA</strong></span>
+                        <span class="mode-chip"><i class="bi bi-bell-fill"></i>Unread alerts: <strong id="unreadCount">0</strong></span>
+                        <span class="mode-chip"><i class="bi bi-compass"></i>Weather → Risk → SOP → Mode → Recommendation</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="view-page d-none" id="view-alerts" data-view="alerts">
+                <div class="crisis-layout">
+                    <section class="panel h-100" id="alerts">
+                        <div class="panel-head">
+                            <div>
+                                <h2 class="panel-title">Trung tâm Cảnh báo</h2>
+                                <div class="panel-subtitle">Cảnh báo HIGH/CRITICAL chưa đọc được ưu tiên lên đầu để xử lý khủng hoảng.</div>
+                            </div>
+                            <button class="btn btn-outline-secondary btn-sm" id="reloadAlertsBtn">
+                                <i class="bi bi-arrow-repeat me-1"></i>Tải lại
+                            </button>
+                        </div>
+                        <div class="panel-body pt-1" id="alertList">
+                            <div class="empty-state"><span class="spinner-border spinner-border-sm me-2"></span>Đang tải cảnh báo...</div>
+                        </div>
+                    </section>
+
+                    <section class="panel h-100" id="tasks">
+                        <div class="panel-head">
+                            <div>
+                                <h2 class="panel-title">Giám sát đầu việc tự động</h2>
+                                <div class="panel-subtitle">Các Task Log do SOP Engine sinh ra khi rủi ro thay đổi.</div>
+                            </div>
+                            <select class="form-select form-select-sm w-auto" id="taskStatus">
+                                <option value="">Tất cả</option>
+                                <option value="PENDING">PENDING</option>
+                                <option value="COMPLETED">COMPLETED</option>
+                            </select>
+                        </div>
+                        <div class="panel-body pt-1">
+                            <div id="taskMigrationNotice"></div>
+                            <div id="taskList">
+                                <div class="empty-state"><span class="spinner-border spinner-border-sm me-2"></span>Đang tải task...</div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </section>
+
+            <section class="view-page d-none" id="view-risk-config" data-view="riskConfig">
+                <div class="threshold-layout">
+                    <div class="threshold-stack">
+                        <section class="threshold-card">
+                            <div class="threshold-title"><i class="bi bi-wind"></i>Ngưỡng tốc độ gió - WIND</div>
+                            <div class="threshold-subtitle">Backend Risk Engine đang đánh giá WIND theo m/s; cấp Beaufort dùng để diễn giải cho người vận hành.</div>
+                            <div class="threshold-row">
+                                <label>MEDIUM từ</label>
+                                <input type="range" min="0" max="35" step="0.1" data-threshold-input="windMedium">
+                                <input class="form-control" type="number" min="0" step="0.1" data-threshold-input="windMedium">
+                            </div>
+                            <div class="threshold-row">
+                                <label>HIGH từ</label>
+                                <input type="range" min="0" max="35" step="0.1" data-threshold-input="windHigh">
+                                <input class="form-control" type="number" min="0" step="0.1" data-threshold-input="windHigh">
+                            </div>
+                            <div class="threshold-row">
+                                <label>CRITICAL từ</label>
+                                <input type="range" min="0" max="35" step="0.1" data-threshold-input="windCritical">
+                                <input class="form-control" type="number" min="0" step="0.1" data-threshold-input="windCritical">
+                            </div>
+                        </section>
+
+                        <section class="threshold-card">
+                            <div class="threshold-title"><i class="bi bi-cloud-rain"></i>Ngưỡng lượng mưa - RAIN</div>
+                            <div class="threshold-subtitle">Lượng mưa tích lũy trong một giờ, đơn vị mm/h.</div>
+                            <div class="threshold-row">
+                                <label>MEDIUM từ</label>
+                                <input type="range" min="0" max="120" step="1" data-threshold-input="rainMedium">
+                                <input class="form-control" type="number" min="0" step="1" data-threshold-input="rainMedium">
+                            </div>
+                            <div class="threshold-row">
+                                <label>HIGH từ</label>
+                                <input type="range" min="0" max="120" step="1" data-threshold-input="rainHigh">
+                                <input class="form-control" type="number" min="0" step="1" data-threshold-input="rainHigh">
+                            </div>
+                            <div class="threshold-row">
+                                <label>CRITICAL từ</label>
+                                <input type="range" min="0" max="120" step="1" data-threshold-input="rainCritical">
+                                <input class="form-control" type="number" min="0" step="1" data-threshold-input="rainCritical">
+                            </div>
+                        </section>
+
+                        <section class="threshold-card">
+                            <div class="threshold-title"><i class="bi bi-eye"></i>Ngưỡng tầm nhìn - VISIBILITY</div>
+                            <div class="threshold-subtitle">Tầm nhìn càng thấp càng nguy hiểm; hệ thống dùng quy tắc dưới ngưỡng.</div>
+                            <div class="threshold-row">
+                                <label>MEDIUM dưới</label>
+                                <input type="range" min="0" max="20" step="0.1" data-threshold-input="visibilityMedium">
+                                <input class="form-control" type="number" min="0" step="0.1" data-threshold-input="visibilityMedium">
+                            </div>
+                            <div class="threshold-row">
+                                <label>HIGH dưới</label>
+                                <input type="range" min="0" max="20" step="0.1" data-threshold-input="visibilityHigh">
+                                <input class="form-control" type="number" min="0" step="0.1" data-threshold-input="visibilityHigh">
+                            </div>
+                            <div class="threshold-row">
+                                <label>CRITICAL dưới</label>
+                                <input type="range" min="0" max="20" step="0.1" data-threshold-input="visibilityCritical">
+                                <input class="form-control" type="number" min="0" step="0.1" data-threshold-input="visibilityCritical">
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="threshold-stack">
+                        <section class="risk-preview-card">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                                <div>
+                                    <div class="fw-bold">Xem trước đánh giá</div>
+                                    <div class="text-secondary small">Nhập dữ liệu để kiểm tra ngưỡng mà không cần chạy simulation.</div>
+                                </div>
+                                <button class="btn btn-primary btn-sm" id="saveThresholdsBtn" type="button">
+                                    <i class="bi bi-check2 me-1"></i>Lưu cấu hình
+                                </button>
+                            </div>
+                            <label class="form-label small fw-bold">Tốc độ gió (m/s)</label>
+                            <input class="form-control mb-2" id="previewWindSpeed" type="number" min="0" step="0.1" value="18.4">
+                            <label class="form-label small fw-bold">Lượng mưa (mm/h)</label>
+                            <input class="form-control mb-2" id="previewRainfall" type="number" min="0" step="0.1" value="28.5">
+                            <label class="form-label small fw-bold">Tầm nhìn (km)</label>
+                            <input class="form-control mb-2" id="previewVisibility" type="number" min="0" step="0.1" value="4.2">
+                            <div class="preview-result-box" id="thresholdPreviewBox">
+                                <div class="text-secondary small fw-bold mb-2">Kết quả dự kiến</div>
+                                <div class="preview-level" id="thresholdPreviewLevel">HIGH</div>
+                                <div class="preview-reason" id="thresholdPreviewReason">Yếu tố chi phối: tốc độ gió</div>
+                            </div>
+                        </section>
+
+                        <section class="decision-guide-card">
+                            <div class="fw-bold mb-2">Quy tắc ra quyết định demo</div>
+                            <div class="text-secondary small mb-2">Luồng đúng theo data flow: Weather Reading → Risk Assessment → SOP → Alert/Task → Operation Mode.</div>
+                            <div class="decision-guide">
+                                <div class="decision-guide-row"><span class="risk-badge level-LOW">LOW</span><span>Vận hành bình thường, tiếp tục theo dõi.</span></div>
+                                <div class="decision-guide-row"><span class="risk-badge level-MEDIUM">MEDIUM</span><span>Cảnh giác, tăng tần suất quan sát.</span></div>
+                                <div class="decision-guide-row"><span class="risk-badge level-HIGH">HIGH</span><span>Hạn chế bốc dỡ/ra vào khu vực nhạy cảm; mode thường chuyển LIMITED.</span></div>
+                                <div class="decision-guide-row"><span class="risk-badge level-CRITICAL">CRITICAL</span><span>Không nên ra cảng hoặc tiếp tục vận hành; SOP chuyển STOP và tạo cảnh báo khẩn.</span></div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </section>
+
+            <section class="view-page d-none" id="view-simulation" data-view="simulation">
+                <section id="simulation">
+                    <div class="simulation-layout">
+                        <div class="scenario-card">
+                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                <div class="sim-status"><span class="status-dot" id="simDot"></span><span id="simState">Sẵn sàng mô phỏng</span></div>
+                                <span class="guard-badge d-none" id="simGuardBadge"><i class="bi bi-shield-lock-fill"></i>Đang diễn tập (Data Isolated)</span>
+                            </div>
+                            <div class="scenario-title" id="scenarioTitle">Kịch bản bão Đà Nẵng 10/2023</div>
+                            <p class="scenario-copy">
+                                Dữ liệu mô phỏng quá trình gió tăng từ cấp 4 lên cấp 10, mưa lớn và tầm nhìn giảm.
+                                Hệ thống tự động đánh giá rủi ro, kích hoạt SOP và thay đổi chế độ vận hành.
+                            </p>
+                            <div class="sim-progress"><div id="simProgress"></div></div>
+                            <div class="d-flex justify-content-between text-white-50" style="font-size:10px">
+                                <span>Bắt đầu</span>
+                                <span id="simProgressText">0% - Chưa chạy</span>
+                                <span>Kết thúc</span>
+                            </div>
+                            <div class="snapshot-track" id="snapshotTrack">
+                                <div class="snapshot">Gió<br><strong>18.4 m/s</strong></div>
+                                <div class="snapshot">Beaufort<br><strong>Cấp 8</strong></div>
+                                <div class="snapshot">Rủi ro<br><strong>HIGH</strong></div>
+                                <div class="snapshot">Chế độ<br><strong>LIMITED</strong></div>
+                            </div>
+                            <span class="d-none" id="simSessionText">Chưa có session</span>
+                        </div>
+
+                        <div class="sim-config-card">
+                            <div class="fw-bold mb-3">Thiết lập mô phỏng</div>
+                            <div class="sim-field">
+                                <label class="form-label">Kịch bản thiên tai</label>
+                                <select class="form-select" id="scenarioSelect">
+                                    <option value="storm">Bão lớn đổ bộ</option>
+                                    <option value="fog">Sương mù hạn chế tầm nhìn</option>
+                                    <option value="tide">Triều cường dâng cao</option>
+                                    <option value="custom">Tùy chỉnh</option>
+                                </select>
+                            </div>
+                            <div class="preset-grid" aria-label="Chọn nhanh kịch bản">
+                                <button class="preset-btn active" type="button" data-preset="storm">Bão lớn</button>
+                                <button class="preset-btn" type="button" data-preset="fog">Sương mù</button>
+                                <button class="preset-btn" type="button" data-preset="tide">Triều cường</button>
+                            </div>
+                            <div class="simulation-form-grid">
+                                <div class="sim-field">
+                                    <label class="form-label">Gió (m/s)</label>
+                                    <input class="form-control" id="simWindSpeed" type="number" min="0" step="0.1" value="28">
+                                </div>
+                                <div class="sim-field">
+                                    <label class="form-label">Mưa (mm/h)</label>
+                                    <input class="form-control" id="simRainfall" type="number" min="0" step="0.1" value="75">
+                                </div>
+                                <div class="sim-field">
+                                    <label class="form-label">Tầm nhìn (km)</label>
+                                    <input class="form-control" id="simVisibility" type="number" min="0" step="0.1" value="0.4">
+                                </div>
+                                <div class="sim-field">
+                                    <label class="form-label">Mực nước (m)</label>
+                                    <input class="form-control" id="simSeaLevel" type="number" step="0.1" value="1.8">
+                                </div>
+                                <div class="sim-field">
+                                    <label class="form-label">Nhiệt độ (°C)</label>
+                                    <input class="form-control" id="simTemperature" type="number" step="0.1" value="26">
+                                </div>
+                                <div class="sim-field">
+                                    <label class="form-label">Độ ẩm (%)</label>
+                                    <input class="form-control" id="simHumidity" type="number" min="0" max="100" step="1" value="94">
+                                </div>
+                            </div>
+                            <div class="sim-summary">
+                                <div class="fw-bold text-dark mb-1" id="scenarioSummaryTitle">Mô phỏng bão lớn đổ bộ</div>
+                                <div>Frontend tạo 5 snapshot leo thang trong 60 phút.</div>
+                                <div>Speed multiplier: 100x để demo tua nhanh.</div>
+                                <div>Dữ liệu có cờ IsSimulation=true để cách ly.</div>
+                            </div>
+                            <div class="sim-risk-preview" id="simulationDecisionPreview">
+                                <div class="text-secondary fw-bold mb-1">Dự kiến theo ngưỡng hiện tại</div>
+                                <strong>--</strong>
+                                <div>Chưa có dữ liệu mô phỏng.</div>
+                            </div>
+                            <button class="btn btn-primary w-100 py-2" id="startSimulationBtn">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>KÍCH HOẠT MÔ PHỎNG
+                            </button>
+                            <button class="btn btn-outline-secondary w-100 mt-2" id="stopSimulationBtn" disabled>
+                                <i class="bi bi-stop-fill me-1"></i>DỪNG MÔ PHỎNG / QUAY LẠI THỰC TẾ
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="simulation-log">
+                        <div class="panel-head">
+                            <div>
+                                <h2 class="panel-title">Luồng sự kiện mô phỏng</h2>
+                                <div class="panel-subtitle">Các phản ứng tự động sẽ xuất hiện tại đây</div>
+                            </div>
+                        </div>
+                        <div class="simulation-log-body" id="simulationLog">
+                            <div>
+                                <i class="bi bi-circle-fill fs-3 d-block mb-2 text-dark"></i>
+                                <div class="fw-bold text-dark">Chưa có dữ liệu mô phỏng</div>
+                                <div>Bấm “Bắt đầu mô phỏng” để phát dữ liệu.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </section>
+            </section>
+        </div>
+    </main>
+</div>
+
+<div class="auth-overlay" id="authOverlay">
+    <div class="auth-box">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="brand-mark">P</div>
+            <div>
+                <h2 class="h5 fw-bold mb-1">Kết nối PORMS API</h2>
+                <div class="text-secondary small">Đăng nhập hoặc dán access token để chạy demo.</div>
+            </div>
+        </div>
+        <form id="loginForm">
+            <label class="form-label small fw-semibold">Email</label>
+            <input class="form-control mb-3" id="emailInput" type="email" value="admin@porms.vn" required>
+            <label class="form-label small fw-semibold">Mật khẩu</label>
+            <input class="form-control mb-3" id="passwordInput" type="password" value="Admin@2026!" required>
+            <label class="form-label small fw-semibold">Port ID</label>
+            <input class="form-control mb-3" id="portInput" value="09674fa3-1136-490d-8a0f-a980f0065e05" required>
+            <button class="btn btn-primary w-100 py-2" type="submit" id="loginBtn">
+                <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập và mở Dashboard
+            </button>
+        </form>
+        <div class="text-center text-secondary small my-3">hoặc dùng JWT có sẵn</div>
+        <textarea class="form-control mb-2" id="tokenInput" rows="3" placeholder="Dán access token, không cần chữ Bearer"></textarea>
+        <button class="btn btn-outline-secondary w-100" id="useTokenBtn">Sử dụng token</button>
+        <div class="alert alert-danger mt-3 mb-0 d-none small" id="authError"></div>
+    </div>
+</div>
+
+<script>
+(() => {
+    "use strict";
+
+    const DEFAULT_PORT_ID = "09674fa3-1136-490d-8a0f-a980f0065e05";
+    const POLL_INTERVAL_MS = 3000;
+    const SIMULATION_POLL_INTERVAL_MS = 1000;
+    const VIEW_META = {
+        dashboard: {
+            title: "Real-time Dashboard",
+            topbar: "Dashboard",
+            subtitle: "Theo dõi trạng thái thời tiết, rủi ro và khuyến nghị vận hành theo thời gian thực."
+        },
+        alerts: {
+            title: "Trung tâm Cảnh báo & Đầu việc",
+            topbar: "Cảnh báo",
+            subtitle: "Không gian xử lý khủng hoảng: xác nhận alert và theo dõi SOP task phát sinh."
+        },
+        riskConfig: {
+            title: "Cấu hình ngưỡng rủi ro",
+            topbar: "Cấu hình ngưỡng rủi ro",
+            subtitle: "Điều chỉnh ngưỡng WIND, RAIN và VISIBILITY để preview khi nào hệ thống cảnh báo, hạn chế hoặc dừng vận hành."
+        },
+        simulation: {
+            title: "Chế độ mô phỏng",
+            topbar: "Chế độ mô phỏng",
+            subtitle: "Replay dữ liệu bão lịch sử để huấn luyện và trình diễn."
+        }
+    };
+    const state = {
+        token: localStorage.getItem("porms_token") || localStorage.getItem("porms_demo_token") || "",
+        portId: localStorage.getItem("porms_demo_port") || DEFAULT_PORT_ID,
+        simulationId: null,
+        simulationRunning: false,
+        lastCriticalUnread: 0,
+        pollHandle: null,
+        audioContext: null,
+        activeView: "dashboard",
+        thresholdsLoaded: false,
+        thresholdIds: {}
+    };
+    let isSimulationActive = false;
+    if (state.token && !localStorage.getItem("porms_token")) {
+        localStorage.setItem("porms_token", state.token);
+        localStorage.removeItem("porms_demo_token");
+    }
+
+    const $ = id => document.getElementById(id);
+    const escapeHtml = value => String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+    function setClock() {
+        $("clock").textContent = new Intl.DateTimeFormat("vi-VN", {
+            hour: "2-digit", minute: "2-digit", second: "2-digit",
+            day: "2-digit", month: "2-digit", year: "numeric"
+        }).format(new Date());
+    }
+
+    async function api(path, options = {}) {
+        const headers = new Headers(options.headers || {});
+        headers.set("Accept", "application/json");
+        const token = localStorage.getItem("porms_token") || state.token;
+        if (token) {
+            state.token = token;
+            headers.set("Authorization", `Bearer ${token}`);
+        }
+        if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+
+        let response;
+        try {
+            response = await fetch(path, { ...options, headers });
+        } catch {
+            throw { status: 0, message: "Không kết nối được PORMS API. Hãy kiểm tra backend localhost:5080." };
+        }
+
+        const text = await response.text();
+        let payload = null;
+        if (text) {
+            try { payload = JSON.parse(text); }
+            catch { payload = text; }
+        }
+
+        if (!response.ok) {
+            const message = payload?.message || payload?.detail || payload?.title || payload || `HTTP ${response.status}`;
+            throw { status: response.status, code: payload?.code, message };
+        }
+        return payload;
+    }
+
+    function showMessage(message, type = "danger", timeout = 6000) {
+        const id = `msg-${Date.now()}`;
+        $("messageArea").insertAdjacentHTML("beforeend", `
+            <div class="alert alert-${type} alert-dismissible shadow-sm small" id="${id}">
+                ${escapeHtml(message)}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>`);
+        if (timeout) setTimeout(() => document.getElementById(id)?.remove(), timeout);
+    }
+
+    function handleApiError(error, context) {
+        $("connectionBadge").className = "risk-badge level-CRITICAL";
+        $("connectionBadge").textContent = "Mất kết nối";
+        if (error.status === 401) {
+            localStorage.removeItem("porms_token");
+            state.token = "";
+            showMessage(`${context}: phiên đăng nhập hết hạn hoặc token không hợp lệ.`, "danger");
+            openAuth();
+        } else if (error.status === 403) {
+            showMessage(`${context}: tài khoản không được phép truy cập cảng ${state.portId}.`, "warning");
+            openAuth();
+        } else {
+            showMessage(`${context}: ${error.message}`, "danger");
+        }
+    }
+
+    function setRiskVisual(level) {
+        const normalized = level || "INFO";
+        $("riskValue").textContent = level || "--";
+        $("riskBadge").className = `risk-badge level-${normalized}`;
+        $("riskBadge").textContent = level || "NO DATA";
+    }
+
+    function number(value, digits = 1) {
+        return value === null || value === undefined ? "--" : Number(value).toFixed(digits);
+    }
+
+    const severityRank = { LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3 };
+    const factorLabels = {
+        WIND: "tốc độ gió",
+        RAIN: "lượng mưa",
+        VISIBILITY: "tầm nhìn"
+    };
+    const thresholdConfig = {
+        windMedium: 10.8,
+        windHigh: 17.2,
+        windCritical: 24.5,
+        rainMedium: 10,
+        rainHigh: 25,
+        rainCritical: 50,
+        visibilityMedium: 10,
+        visibilityHigh: 5,
+        visibilityCritical: 1
+    };
+
+    function normalizeEnum(value, enumMap) {
+        if (typeof value === "string") return value.toUpperCase();
+        return enumMap[value] || String(value ?? "").toUpperCase();
+    }
+
+    function toBeaufort(windSpeedMs) {
+        const v = Number(windSpeedMs) || 0;
+        if (v <= 0.2) return 0;
+        if (v <= 1.5) return 1;
+        if (v <= 3.3) return 2;
+        if (v <= 5.4) return 3;
+        if (v <= 7.9) return 4;
+        if (v <= 10.7) return 5;
+        if (v <= 13.8) return 6;
+        if (v <= 17.1) return 7;
+        if (v <= 20.7) return 8;
+        if (v <= 24.4) return 9;
+        if (v <= 28.4) return 10;
+        if (v <= 32.6) return 11;
+        return 12;
+    }
+
+    function levelColor(level) {
+        return (level || "INFO").toLowerCase();
+    }
+
+    function setThresholdValue(key, value) {
+        thresholdConfig[key] = Number(value);
+        document.querySelectorAll(`[data-threshold-input="${key}"]`).forEach(input => {
+            if (document.activeElement !== input) input.value = thresholdConfig[key];
+        });
+    }
+
+    function syncAllThresholdInputs() {
+        Object.entries(thresholdConfig).forEach(([key, value]) => setThresholdValue(key, value));
+    }
+
+    function readPreviewNumber(id, fallback) {
+        const value = Number($(id)?.value);
+        return Number.isFinite(value) ? value : fallback;
+    }
+
+    function riskByAscending(value, medium, high, critical) {
+        if (value >= critical) return "CRITICAL";
+        if (value >= high) return "HIGH";
+        if (value >= medium) return "MEDIUM";
+        return "LOW";
+    }
+
+    function riskByVisibility(value) {
+        if (value < thresholdConfig.visibilityCritical) return "CRITICAL";
+        if (value < thresholdConfig.visibilityHigh) return "HIGH";
+        if (value < thresholdConfig.visibilityMedium) return "MEDIUM";
+        return "LOW";
+    }
+
+    function evaluateThresholdPreview(windSpeedMs, rainfall1hMm, visibilityKm) {
+        const windRisk = riskByAscending(
+            windSpeedMs,
+            thresholdConfig.windMedium,
+            thresholdConfig.windHigh,
+            thresholdConfig.windCritical
+        );
+        const rainRisk = riskByAscending(
+            rainfall1hMm,
+            thresholdConfig.rainMedium,
+            thresholdConfig.rainHigh,
+            thresholdConfig.rainCritical
+        );
+        const visibilityRisk = riskByVisibility(visibilityKm);
+        const factors = [
+            { factor: "WIND", level: windRisk, value: windSpeedMs },
+            { factor: "RAIN", level: rainRisk, value: rainfall1hMm },
+            { factor: "VISIBILITY", level: visibilityRisk, value: visibilityKm }
+        ].sort((a, b) => severityRank[b.level] - severityRank[a.level]);
+        const dominant = factors[0];
+        const finalLevel = dominant.level;
+        const mode = finalLevel === "CRITICAL" ? "STOP" : finalLevel === "HIGH" ? "LIMITED" : "NORMAL";
+        const decision = finalLevel === "CRITICAL"
+            ? "STOP_OPERATIONS - Không nên ra cảng/không tiếp tục vận hành."
+            : finalLevel === "HIGH"
+                ? "RESTRICT_OPERATIONS - Hạn chế bốc dỡ, tăng giám sát."
+                : finalLevel === "MEDIUM"
+                    ? "MONITOR_CLOSELY - Vẫn vận hành nhưng cần theo dõi."
+                    : "OPERATE_NORMALLY - Điều kiện đang an toàn.";
+
+        return {
+            finalLevel,
+            dominantFactor: dominant.factor,
+            dominantLabel: factorLabels[dominant.factor],
+            mode,
+            decision,
+            beaufort: toBeaufort(windSpeedMs),
+            windRisk,
+            rainRisk,
+            visibilityRisk
+        };
+    }
+
+    function renderThresholdPreview() {
+        if (!$("thresholdPreviewBox")) return;
+        const wind = readPreviewNumber("previewWindSpeed", 0);
+        const rain = readPreviewNumber("previewRainfall", 0);
+        const visibility = readPreviewNumber("previewVisibility", 10);
+        const result = evaluateThresholdPreview(wind, rain, visibility);
+        $("thresholdPreviewBox").className = `preview-result-box ${levelColor(result.finalLevel)}`;
+        $("thresholdPreviewLevel").textContent = result.finalLevel;
+        $("thresholdPreviewReason").innerHTML = `
+            Yếu tố chi phối: <strong>${escapeHtml(result.dominantLabel)}</strong><br>
+            Beaufort tham chiếu: <strong>cấp ${result.beaufort}</strong> · Operation Mode dự kiến: <strong>${result.mode}</strong><br>
+            ${escapeHtml(result.decision)}`;
+        renderSimulationDecisionPreview();
+    }
+
+    function renderSimulationDecisionPreview() {
+        if (!$("simulationDecisionPreview")) return;
+        const wind = readSimulationNumber("simWindSpeed", 0);
+        const rain = readSimulationNumber("simRainfall", 0);
+        const visibility = readSimulationNumber("simVisibility", 10);
+        const sea = readSimulationNumber("simSeaLevel", 0);
+        const result = evaluateThresholdPreview(wind, rain, visibility);
+        $("simulationDecisionPreview").className = `sim-risk-preview preview-result-box ${levelColor(result.finalLevel)}`;
+        $("simulationDecisionPreview").innerHTML = `
+            <div class="text-secondary fw-bold mb-1">Dự kiến theo ngưỡng hiện tại</div>
+            <strong>${escapeHtml(result.finalLevel)} → ${escapeHtml(result.mode)}</strong>
+            <div>${escapeHtml(result.decision)}</div>
+            <div class="mt-1 text-secondary">Chi phối: ${escapeHtml(result.dominantLabel)} · Beaufort ${result.beaufort} · Mực nước tham chiếu ${number(sea)} m</div>`;
+    }
+
+    async function loadRiskThresholds() {
+        try {
+            const thresholds = await api("/api/risk/thresholds");
+            const factorMap = { 0: "WIND", 1: "RAIN", 2: "VISIBILITY" };
+            const levelMap = { 0: "LOW", 1: "MEDIUM", 2: "HIGH", 3: "CRITICAL" };
+            state.thresholdIds = {};
+            thresholds.forEach(item => {
+                const factor = normalizeEnum(item.factor, factorMap);
+                const riskLevel = normalizeEnum(item.riskLevel, levelMap);
+                state.thresholdIds[`${factor}_${riskLevel}`] = item.id;
+                if (factor === "WIND" && riskLevel === "MEDIUM") setThresholdValue("windMedium", item.minValue);
+                if (factor === "WIND" && riskLevel === "HIGH") setThresholdValue("windHigh", item.minValue);
+                if (factor === "WIND" && riskLevel === "CRITICAL") setThresholdValue("windCritical", item.minValue);
+                if (factor === "RAIN" && riskLevel === "MEDIUM") setThresholdValue("rainMedium", item.minValue);
+                if (factor === "RAIN" && riskLevel === "HIGH") setThresholdValue("rainHigh", item.minValue);
+                if (factor === "RAIN" && riskLevel === "CRITICAL") setThresholdValue("rainCritical", item.minValue);
+                if (factor === "VISIBILITY" && riskLevel === "LOW") setThresholdValue("visibilityMedium", item.minValue);
+                if (factor === "VISIBILITY" && riskLevel === "MEDIUM") setThresholdValue("visibilityHigh", item.minValue);
+                if (factor === "VISIBILITY" && riskLevel === "HIGH") setThresholdValue("visibilityCritical", item.minValue);
+            });
+            state.thresholdsLoaded = true;
+            renderThresholdPreview();
+        } catch (error) {
+            state.thresholdsLoaded = false;
+            renderThresholdPreview();
+            showMessage(`Không load được risk thresholds từ API, đang dùng ngưỡng fallback trên giao diện: ${error.message}`, "warning", 5000);
+        }
+    }
+
+    function buildThresholdUpdates() {
+        const id = key => state.thresholdIds[key];
+        return [
+            { id: id("WIND_LOW"), minValue: 0, maxValue: thresholdConfig.windMedium, description: "LOW wind threshold" },
+            { id: id("WIND_MEDIUM"), minValue: thresholdConfig.windMedium, maxValue: thresholdConfig.windHigh, description: "MEDIUM wind threshold" },
+            { id: id("WIND_HIGH"), minValue: thresholdConfig.windHigh, maxValue: thresholdConfig.windCritical, description: "HIGH wind threshold" },
+            { id: id("WIND_CRITICAL"), minValue: thresholdConfig.windCritical, maxValue: null, description: "CRITICAL wind threshold" },
+            { id: id("RAIN_LOW"), minValue: 0, maxValue: thresholdConfig.rainMedium, description: "LOW rain threshold" },
+            { id: id("RAIN_MEDIUM"), minValue: thresholdConfig.rainMedium, maxValue: thresholdConfig.rainHigh, description: "MEDIUM rain threshold" },
+            { id: id("RAIN_HIGH"), minValue: thresholdConfig.rainHigh, maxValue: thresholdConfig.rainCritical, description: "HIGH rain threshold" },
+            { id: id("RAIN_CRITICAL"), minValue: thresholdConfig.rainCritical, maxValue: null, description: "CRITICAL rain threshold" },
+            { id: id("VISIBILITY_CRITICAL"), minValue: 0, maxValue: thresholdConfig.visibilityCritical, description: "CRITICAL visibility threshold" },
+            { id: id("VISIBILITY_HIGH"), minValue: thresholdConfig.visibilityCritical, maxValue: thresholdConfig.visibilityHigh, description: "HIGH visibility threshold" },
+            { id: id("VISIBILITY_MEDIUM"), minValue: thresholdConfig.visibilityHigh, maxValue: thresholdConfig.visibilityMedium, description: "MEDIUM visibility threshold" },
+            { id: id("VISIBILITY_LOW"), minValue: thresholdConfig.visibilityMedium, maxValue: null, description: "LOW visibility threshold" }
+        ].filter(item => item.id);
+    }
+
+    function validateThresholds() {
+        if (!(thresholdConfig.windMedium < thresholdConfig.windHigh && thresholdConfig.windHigh < thresholdConfig.windCritical)) {
+            return "Ngưỡng gió phải tăng dần: MEDIUM < HIGH < CRITICAL.";
+        }
+        if (!(thresholdConfig.rainMedium < thresholdConfig.rainHigh && thresholdConfig.rainHigh < thresholdConfig.rainCritical)) {
+            return "Ngưỡng mưa phải tăng dần: MEDIUM < HIGH < CRITICAL.";
+        }
+        if (!(thresholdConfig.visibilityCritical < thresholdConfig.visibilityHigh && thresholdConfig.visibilityHigh < thresholdConfig.visibilityMedium)) {
+            return "Ngưỡng tầm nhìn phải đúng thứ tự: CRITICAL dưới < HIGH dưới < MEDIUM dưới.";
+        }
+        return "";
+    }
+
+    async function saveThresholds() {
+        const validation = validateThresholds();
+        if (validation) {
+            showMessage(validation, "warning");
+            return;
+        }
+        if (!state.thresholdsLoaded) {
+            await loadRiskThresholds();
+        }
+        const updates = buildThresholdUpdates();
+        if (!updates.length) {
+            showMessage("Chưa có threshold ID từ API để lưu. Preview vẫn hoạt động bằng ngưỡng trên giao diện.", "warning");
+            return;
+        }
+        $("saveThresholdsBtn").disabled = true;
+        try {
+            await api("/api/risk/thresholds", {
+                method: "PUT",
+                body: JSON.stringify({
+                    thresholds: updates.map(update => ({
+                        id: update.id,
+                        minValue: update.minValue,
+                        maxValue: update.maxValue,
+                        description: update.description,
+                        isActive: true
+                    }))
+                })
+            });
+            showMessage("Đã lưu cấu hình ngưỡng rủi ro và backend đã invalidate cache.", "success", 5000);
+            await loadRiskThresholds();
+        } catch (error) {
+            handleApiError(error, "Lưu ngưỡng rủi ro");
+        } finally {
+            $("saveThresholdsBtn").disabled = false;
+        }
+    }
+
+    const scenarioPresets = {
+        storm: {
+            label: "Bão lớn đổ bộ",
+            summary: "Mô phỏng bão lớn đổ bộ",
+            wind: 28,
+            rain: 75,
+            visibility: 0.4,
+            seaLevel: 1.8,
+            temperature: 26,
+            humidity: 94
+        },
+        fog: {
+            label: "Sương mù hạn chế tầm nhìn",
+            summary: "Mô phỏng sương mù dày tại luồng tàu",
+            wind: 7,
+            rain: 5,
+            visibility: 0.3,
+            seaLevel: 0.7,
+            temperature: 24,
+            humidity: 98
+        },
+        tide: {
+            label: "Triều cường dâng cao",
+            summary: "Mô phỏng triều cường ảnh hưởng neo đậu",
+            wind: 12,
+            rain: 20,
+            visibility: 6,
+            seaLevel: 2.3,
+            temperature: 27,
+            humidity: 86
+        }
+    };
+
+    function readSimulationNumber(id, fallback) {
+        const value = Number($(id).value);
+        return Number.isFinite(value) ? value : fallback;
+    }
+
+    function applyScenarioPreset(name) {
+        const preset = scenarioPresets[name] || scenarioPresets.storm;
+        $("scenarioSelect").value = name;
+        $("simWindSpeed").value = preset.wind;
+        $("simRainfall").value = preset.rain;
+        $("simVisibility").value = preset.visibility;
+        $("simSeaLevel").value = preset.seaLevel;
+        $("simTemperature").value = preset.temperature;
+        $("simHumidity").value = preset.humidity;
+        $("scenarioSummaryTitle").textContent = preset.summary;
+        $("scenarioTitle").textContent = preset.label === "Bão lớn đổ bộ"
+            ? "Kịch bản bão Đà Nẵng 10/2023"
+            : `Kịch bản ${preset.label}`;
+        document.querySelectorAll("[data-preset]").forEach(button => {
+            button.classList.toggle("active", button.dataset.preset === name);
+        });
+        renderScenarioPreview();
+    }
+
+    function renderScenarioPreview() {
+        const wind = readSimulationNumber("simWindSpeed", 0);
+        const rain = readSimulationNumber("simRainfall", 0);
+        const visibility = readSimulationNumber("simVisibility", 10);
+        const sea = readSimulationNumber("simSeaLevel", 0);
+        [...$("snapshotTrack").children].forEach((node, index) => node.className = "snapshot");
+        $("snapshotTrack").innerHTML = `
+            <div class="snapshot">Gió<br><strong>${number(wind)} m/s</strong></div>
+            <div class="snapshot">Mưa<br><strong>${number(rain)} mm/h</strong></div>
+            <div class="snapshot">Tầm nhìn<br><strong>${number(visibility)} km</strong></div>
+            <div class="snapshot">Mực nước<br><strong>${number(sea)} m</strong></div>`;
+        renderSimulationDecisionPreview();
+    }
+
+    async function loadLiveStatus() {
+        const includeSimulation = isSimulationActive ? "true" : "false";
+        try {
+            const data = await api(`/api/ports/${state.portId}/live-status?includeSimulation=${includeSimulation}`);
+            const weather = data.latestWeather;
+            $("portNameTop").textContent = `${data.portName} (${data.portCode})`;
+            $("windValue").textContent = number(weather?.windSpeedMs);
+            $("windNeedle").style.transform = `rotate(${Number(weather?.windDirectionDeg || 0)}deg)`;
+            $("windDirectionValue").textContent = weather?.windDirectionDeg === null || weather?.windDirectionDeg === undefined
+                ? "--"
+                : `${weather.windDirectionDeg}°`;
+            $("beaufortValue").textContent = weather?.beaufortNumber ?? "--";
+            $("rainValue").textContent = number(weather?.rainfall1hMm ?? 0);
+            $("visibilityValue").textContent = number(weather?.visibilityKm);
+            $("temperatureValue").textContent = number(weather?.temperatureC);
+            $("humidityValue").textContent = weather?.humidityPct ?? "--";
+            $("weatherSource").textContent = weather
+                ? `${weather.dataSource}${weather.isSimulation ? " - SIMULATION" : " - vận hành thật"}`
+                : "Chưa có dữ liệu thời tiết";
+            $("dataModeValue").textContent = weather?.isSimulation ? "SIMULATION" : "REAL DATA";
+            $("modeValue").textContent = data.currentMode;
+            $("decisionCode").textContent = data.recommendationCode;
+            $("decisionText").textContent = data.recommendationText;
+            $("unreadCount").textContent = data.unreadAlertCount;
+            setRiskVisual(data.currentRiskLevel);
+            $("connectionBadge").className = "risk-badge level-LOW";
+            $("connectionBadge").textContent = data.isWeatherDataStale ? "Dữ liệu cũ" : "LIVE";
+        } catch (error) {
+            handleApiError(error, "Live status");
+        }
+    }
+
+    function timeAgo(dateValue) {
+        const seconds = Math.max(0, Math.floor((Date.now() - new Date(dateValue).getTime()) / 1000));
+        if (seconds < 60) return `${seconds} giây trước`;
+        if (seconds < 3600) return `${Math.floor(seconds / 60)} phút trước`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)} giờ trước`;
+        return new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(dateValue));
+    }
+
+    async function loadAlerts() {
+        const includeSimulation = isSimulationActive ? "true" : "false";
+        try {
+            const result = await api(`/api/ports/${state.portId}/alerts?includeSimulation=${includeSimulation}&pageSize=8`);
+            const alerts = result.data || [];
+            const criticalUnread = alerts.filter(x => !x.readAt && x.severity === "CRITICAL").length;
+            if (isSimulationActive && criticalUnread > state.lastCriticalUnread) playAlarm();
+            state.lastCriticalUnread = criticalUnread;
+
+            $("alertList").innerHTML = alerts.length ? alerts.map(alert => {
+                const unread = !alert.readAt;
+                return `
+                    <div class="alert-item${unread ? " unread" : ""}">
+                        <div class="alert-icon"><i class="bi ${alert.severity === "CRITICAL" ? "bi-exclamation-triangle-fill text-danger" : "bi-bell-fill text-warning"}"></i></div>
+                        <div>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="severity-badge level-${escapeHtml(alert.severity)}">${escapeHtml(alert.severity)}</span>
+                                ${alert.isSimulation ? '<span class="badge text-bg-dark">SIM</span>' : ""}
+                            </div>
+                            <div class="item-title mt-2">${escapeHtml(alert.title)}</div>
+                            <div class="item-text">${escapeHtml(alert.message)}</div>
+                            <div class="item-time">${timeAgo(alert.createdAt)} · ${unread ? "Chưa đọc" : "Đã xác nhận"}</div>
+                        </div>
+                        <div>
+                            ${unread ? `<button class="btn btn-outline-success btn-sm mark-read" data-alert-id="${alert.id}">
+                                <i class="bi bi-check2 me-1"></i>Xác nhận đã xử lý
+                            </button>` : '<i class="bi bi-check-circle-fill text-success" title="Đã đọc"></i>'}
+                        </div>
+                    </div>`;
+            }).join("") : '<div class="empty-state"><i class="bi bi-bell-slash fs-3 d-block mb-2"></i>Không có cảnh báo.</div>';
+        } catch (error) {
+            handleApiError(error, "Alert Center");
+        }
+    }
+
+    async function markAlertRead(alertId) {
+        try {
+            await api(`/api/alerts/${alertId}/read`, { method: "PUT" });
+            showMessage("Đã xác nhận cảnh báo và ghi audit log.", "success", 3000);
+            await Promise.all([loadAlerts(), loadLiveStatus()]);
+        } catch (error) {
+            handleApiError(error, "Xác nhận cảnh báo");
+        }
+    }
+
+    async function loadTasks() {
+        const status = $("taskStatus").value;
+        const includeSimulation = isSimulationActive ? "true" : "false";
+        const query = new URLSearchParams({ includeSimulation, pageSize: "8" });
+        if (status) query.set("status", status);
+        $("taskMigrationNotice").innerHTML = "";
+
+        try {
+            const result = await api(`/api/ports/${state.portId}/tasks?${query}`);
+            const tasks = result.data || [];
+            $("taskList").innerHTML = tasks.length ? tasks.map(task => `
+                <div class="task-item">
+                    <div class="alert-icon"><i class="bi bi-clipboard2-check-fill"></i></div>
+                    <div>
+                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                            <span class="risk-badge level-${escapeHtml(task.riskLevelAtCreation)}">${escapeHtml(task.riskLevelAtCreation)}</span>
+                            ${task.isSimulation ? '<span class="badge text-bg-dark">SIM</span>' : ""}
+                        </div>
+                        <div class="item-title mt-2">${escapeHtml(task.actionType)}</div>
+                        <div class="item-text">${escapeHtml(task.actionDescription)}</div>
+                        <div class="item-time">${timeAgo(task.createdAt)}</div>
+                    </div>
+                    <i class="bi bi-arrow-right-circle text-secondary"></i>
+                </div>`).join("") : '<div class="empty-state"><i class="bi bi-clipboard2 fs-3 d-block mb-2"></i>Chưa có SOP task.</div>';
+        } catch (error) {
+            if (error.status === 400 && error.code === "TASK_STATUS_NOT_SUPPORTED") {
+                $("taskMigrationNotice").innerHTML = `
+                    <div class="alert alert-warning small mt-3">
+                        <i class="bi bi-database-exclamation me-1"></i>
+                        Tính năng giám sát đầu việc đang đợi Migration thêm cột trạng thái vào database <code>operational.task_logs</code>.
+                    </div>`;
+                $("taskList").innerHTML = "";
+                return;
+            }
+            handleApiError(error, "SOP Task Log");
+        }
+    }
+
+    function buildSimulationPayload() {
+        const base = new Date();
+        const scenarioKey = $("scenarioSelect").value;
+        const preset = scenarioPresets[scenarioKey] || { label: "Tùy chỉnh", summary: "Mô phỏng tùy chỉnh" };
+        const targetWind = readSimulationNumber("simWindSpeed", 28);
+        const targetRain = readSimulationNumber("simRainfall", 75);
+        const targetVisibility = readSimulationNumber("simVisibility", 0.4);
+        const targetSeaLevel = readSimulationNumber("simSeaLevel", 1.8);
+        const targetTemperature = readSimulationNumber("simTemperature", 26);
+        const targetHumidity = readSimulationNumber("simHumidity", 94);
+        const snapshot = (ratio, offsetMinutes) => {
+            const visibility = Math.max(targetVisibility, 12 - (12 - targetVisibility) * ratio);
+            const humidity = Math.round(Math.min(100, Math.max(0, 65 + (targetHumidity - 65) * ratio)));
+            return {
+                windSpeedMs: Math.max(1, targetWind * ratio),
+                rainfall1hMm: Math.max(0, targetRain * ratio),
+                visibilityKm: visibility,
+                temperatureC: targetTemperature,
+                humidityPct: humidity,
+                observedAt: new Date(base.getTime() + offsetMinutes * 60000).toISOString()
+            };
+        };
+        return {
+            scenarioName: `${preset.label || "Tùy chỉnh"} - PORMS Simulation Demo`,
+            speedMultiplier: 100,
+            weatherSnapshots: [
+                snapshot(0.18, 0),
+                snapshot(0.38, 15),
+                snapshot(0.62, 30),
+                snapshot(0.82, 45),
+                snapshot(1, 60)
+            ]
+        };
+    }
+
+    function buildStormPayload() {
+        return buildSimulationPayload();
+    }
+
+    async function startSimulation() {
+        $("startSimulationBtn").disabled = true;
+        switchView("simulation");
+        try {
+            state.audioContext = state.audioContext || new (window.AudioContext || window.webkitAudioContext)();
+            const session = await api(`/api/ports/${state.portId}/simulation/trigger-scenario`, {
+                method: "POST",
+                body: JSON.stringify(buildSimulationPayload())
+            });
+            state.simulationId = session.id;
+            state.simulationRunning = true;
+            isSimulationActive = true;
+            state.lastCriticalUnread = 0;
+            $("stopSimulationBtn").disabled = false;
+            setSimulationVisual("RUNNING", 0, 0);
+            showMessage("Đã kích hoạt mô phỏng. Dashboard và Alert Center đang đọc dữ liệu cách ly.", "warning", 5000);
+            await pollSimulationStatus();
+        } catch (error) {
+            isSimulationActive = false;
+            state.simulationRunning = false;
+            $("startSimulationBtn").disabled = false;
+            handleApiError(error, "Kích hoạt diễn tập");
+        }
+    }
+
+    async function pollSimulationStatus() {
+        if (!state.simulationId) return;
+        try {
+            const status = await api(`/api/simulation/status?sessionId=${state.simulationId}`);
+            setSimulationVisual(status.status, status.percentComplete, status.completedSnapshots);
+            await Promise.all([loadLiveStatus(), loadAlerts(), loadTasks()]);
+
+            if (status.status === "RUNNING") {
+                setTimeout(pollSimulationStatus, SIMULATION_POLL_INTERVAL_MS);
+                return;
+            }
+
+            const results = await api(`/api/simulation/${state.simulationId}/results`);
+            state.simulationRunning = false;
+            isSimulationActive = true;
+            setSimulationVisual("COMPLETED", 100, results.totalSnapshots || 5);
+            renderSimulationResults(results);
+            $("startSimulationBtn").disabled = false;
+            $("stopSimulationBtn").disabled = false;
+            showMessage(
+                `Diễn tập hoàn tất: peak ${results.peakRiskLevel}, ${results.alertsGenerated} alert, ${results.tasksGenerated} task. Dữ liệu mô phỏng vẫn đang được hiển thị.`,
+                "success",
+                9000
+            );
+            await Promise.all([loadLiveStatus(), loadAlerts(), loadTasks()]);
+        } catch (error) {
+            handleApiError(error, "Theo dõi simulation");
+            state.simulationRunning = false;
+            isSimulationActive = false;
+            $("startSimulationBtn").disabled = false;
+            $("stopSimulationBtn").disabled = true;
+        }
+    }
+
+    async function stopSimulation() {
+        try {
+            if (state.simulationRunning && state.simulationId) {
+                await api("/api/simulation/stop", {
+                    method: "POST",
+                    body: JSON.stringify({ sessionId: state.simulationId })
+                });
+            }
+            state.simulationRunning = false;
+            isSimulationActive = false;
+            state.simulationId = null;
+            setSimulationVisual("CANCELLED", 0, 0);
+            $("startSimulationBtn").disabled = false;
+            $("stopSimulationBtn").disabled = true;
+            showMessage("Đã dừng diễn tập. Dữ liệu thật không bị thay đổi.", "info");
+            await refreshAll();
+        } catch (error) {
+            handleApiError(error, "Dừng simulation");
+        }
+    }
+
+    function setSimulationVisual(status, percent, completed) {
+        const running = status === "RUNNING";
+        const completedStatus = status === "COMPLETED";
+        $("simState").textContent = running ? "Đang mô phỏng" : completedStatus ? "Hoàn tất - đang xem dữ liệu mô phỏng" : status;
+        $("simDot").className = `status-dot${running ? " running" : ""}`;
+        $("simGuardBadge").className = `guard-badge${isSimulationActive ? (running ? " running" : "") : " d-none"}`;
+        $("simHeaderBadge").className = `simulation-header-badge${isSimulationActive ? " running" : ""}`;
+        $("simProgress").style.width = `${percent || 0}%`;
+        $("simProgressText").textContent = `${Math.round(percent || 0)}% · ${completed || 0}/5 snapshot`;
+        $("simSessionText").textContent = state.simulationId ? `Session ${state.simulationId.slice(0, 8)}` : "Chưa có session";
+        if (running) {
+            $("simulationLog").innerHTML = `
+                <div>
+                    <span class="spinner-border spinner-border-sm text-primary mb-3"></span>
+                    <div class="fw-bold text-dark">Đang phát dữ liệu mô phỏng</div>
+                    <div>Weather snapshot ${completed || 0}/5 đang kích hoạt Risk Engine, SOP, Alert và Operation Mode.</div>
+                </div>`;
+        } else if (status === "COMPLETED") {
+            $("simulationLog").innerHTML = `
+                <div>
+                    <i class="bi bi-check-circle-fill fs-3 d-block mb-2 text-success"></i>
+                    <div class="fw-bold text-dark">Mô phỏng hoàn tất</div>
+                    <div>Dữ liệu diễn tập đã được cách ly và giao diện sẽ quay về dữ liệu vận hành thật.</div>
+                </div>`;
+        } else if (status === "READY" || status === "CANCELLED") {
+            $("simulationLog").innerHTML = `
+                <div>
+                    <i class="bi bi-circle-fill fs-3 d-block mb-2 text-dark"></i>
+                    <div class="fw-bold text-dark">Chưa có dữ liệu mô phỏng</div>
+                    <div>Bấm “Bắt đầu mô phỏng” để phát dữ liệu.</div>
+                </div>`;
+        }
+        [...$("snapshotTrack").children].forEach((node, index) => {
+            node.className = "snapshot";
+            if (index < completed) node.classList.add("done");
+            else if (running && index === completed) node.classList.add("active");
+        });
+    }
+
+    function renderSimulationResults(results) {
+        const distribution = results.riskDistribution
+            ? Object.entries(results.riskDistribution)
+                .map(([level, count]) => `<span class="risk-badge level-${escapeHtml(level)}">${escapeHtml(level)}: ${count}</span>`)
+                .join(" ")
+            : "";
+        $("simulationLog").innerHTML = `
+            <div class="w-100 text-start">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <i class="bi bi-check-circle-fill fs-4 text-success"></i>
+                    <div>
+                        <div class="fw-bold text-dark">Mô phỏng hoàn tất - dữ liệu đang được giữ để kiểm tra</div>
+                        <div class="text-secondary small">Bấm “Dừng mô phỏng / Quay lại thực tế” khi muốn trở lại OpenWeather.</div>
+                    </div>
+                </div>
+                <div class="row g-2">
+                    <div class="col-6 col-md-3">
+                        <div class="metric p-3">
+                            <div class="metric-label">Peak risk</div>
+                            <div class="fw-bold fs-5 text-danger">${escapeHtml(results.peakRiskLevel || "N/A")}</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="metric p-3">
+                            <div class="metric-label">Alerts</div>
+                            <div class="fw-bold fs-5">${results.alertsGenerated ?? 0}</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="metric p-3">
+                            <div class="metric-label">Tasks</div>
+                            <div class="fw-bold fs-5">${results.tasksGenerated ?? 0}</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="metric p-3">
+                            <div class="metric-label">SOP executions</div>
+                            <div class="fw-bold fs-5">${results.sopExecutions ?? 0}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3 d-flex flex-wrap gap-2">${distribution}</div>
+            </div>`;
+    }
+
+    function playAlarm() {
+        try {
+            const context = state.audioContext || new (window.AudioContext || window.webkitAudioContext)();
+            state.audioContext = context;
+            [0, 0.22, 0.44].forEach(delay => {
+                const oscillator = context.createOscillator();
+                const gain = context.createGain();
+                oscillator.type = "square";
+                oscillator.frequency.value = 720;
+                gain.gain.setValueAtTime(0.0001, context.currentTime + delay);
+                gain.gain.exponentialRampToValueAtTime(0.11, context.currentTime + delay + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + delay + 0.16);
+                oscillator.connect(gain).connect(context.destination);
+                oscillator.start(context.currentTime + delay);
+                oscillator.stop(context.currentTime + delay + 0.18);
+            });
+        } catch {
+            // Browser audio permission may be disabled; visual alerts still work.
+        }
+    }
+
+    async function refreshAll() {
+        await Promise.all([loadLiveStatus(), loadAlerts(), loadTasks()]);
+    }
+
+    async function login(event) {
+        event.preventDefault();
+        $("loginBtn").disabled = true;
+        $("authError").classList.add("d-none");
+        try {
+            const result = await api("/api/auth/login", {
+                method: "POST",
+                body: JSON.stringify({
+                    email: $("emailInput").value.trim(),
+                    password: $("passwordInput").value
+                })
+            });
+            saveConnection(result.accessToken || result.token, $("portInput").value.trim() || result.user?.assignedPortId);
+            closeAuth();
+            await Promise.all([loadRiskThresholds(), refreshAll()]);
+        } catch (error) {
+            $("authError").textContent = error.status === 401
+                ? "Sai email hoặc mật khẩu."
+                : `Không đăng nhập được: ${error.message}`;
+            $("authError").classList.remove("d-none");
+        } finally {
+            $("loginBtn").disabled = false;
+        }
+    }
+
+    function useManualToken() {
+        const token = $("tokenInput").value.trim().replace(/^Bearer\s+/i, "");
+        const portId = $("portInput").value.trim();
+        if (!token || !portId) {
+            $("authError").textContent = "Token và Port ID không được để trống.";
+            $("authError").classList.remove("d-none");
+            return;
+        }
+        saveConnection(token, portId);
+        closeAuth();
+        loadRiskThresholds();
+        refreshAll();
+    }
+
+    function saveConnection(token, portId) {
+        state.token = token;
+        state.portId = portId || DEFAULT_PORT_ID;
+        localStorage.setItem("porms_token", state.token);
+        localStorage.removeItem("porms_demo_token");
+        localStorage.setItem("porms_demo_port", state.portId);
+    }
+
+    function openAuth() {
+        $("portInput").value = state.portId;
+        $("tokenInput").value = state.token;
+        $("authOverlay").classList.add("show");
+    }
+
+    function closeAuth() {
+        $("authOverlay").classList.remove("show");
+    }
+
+    function switchView(viewName) {
+        const meta = VIEW_META[viewName] || VIEW_META.dashboard;
+        state.activeView = viewName;
+        document.querySelectorAll("[data-view]").forEach(section => {
+            section.classList.toggle("d-none", section.dataset.view !== viewName);
+        });
+        document.querySelectorAll("[data-view-target]").forEach(button => {
+            button.classList.toggle("active", button.dataset.viewTarget === viewName);
+        });
+        $("pageTitle").textContent = meta.title;
+        $("pageSubtitle").textContent = meta.subtitle;
+        $("topbarModule").textContent = meta.topbar || meta.title;
+    }
+
+    $("loginForm").addEventListener("submit", login);
+    $("useTokenBtn").addEventListener("click", useManualToken);
+    $("settingsBtn").addEventListener("click", openAuth);
+    $("refreshBtn").addEventListener("click", refreshAll);
+    $("reloadAlertsBtn").addEventListener("click", loadAlerts);
+    $("taskStatus").addEventListener("change", loadTasks);
+    $("startSimulationBtn").addEventListener("click", startSimulation);
+    $("stopSimulationBtn").addEventListener("click", stopSimulation);
+    $("saveThresholdsBtn").addEventListener("click", saveThresholds);
+    $("scenarioSelect").addEventListener("change", event => {
+        if (event.target.value === "custom") {
+            $("scenarioSummaryTitle").textContent = "Mô phỏng tùy chỉnh";
+            $("scenarioTitle").textContent = "Kịch bản mô phỏng tùy chỉnh";
+            document.querySelectorAll("[data-preset]").forEach(button => button.classList.remove("active"));
+            renderScenarioPreview();
+            return;
+        }
+        applyScenarioPreset(event.target.value);
+    });
+    document.querySelectorAll("[data-preset]").forEach(button => {
+        button.addEventListener("click", () => applyScenarioPreset(button.dataset.preset));
+    });
+    ["simWindSpeed", "simRainfall", "simVisibility", "simSeaLevel", "simTemperature", "simHumidity"]
+        .forEach(id => $(id).addEventListener("input", () => {
+            $("scenarioSelect").value = "custom";
+            $("scenarioSummaryTitle").textContent = "Mô phỏng tùy chỉnh";
+            $("scenarioTitle").textContent = "Kịch bản mô phỏng tùy chỉnh";
+            document.querySelectorAll("[data-preset]").forEach(button => button.classList.remove("active"));
+            renderScenarioPreview();
+        }));
+    document.querySelectorAll("[data-threshold-input]").forEach(input => {
+        input.addEventListener("input", () => {
+            setThresholdValue(input.dataset.thresholdInput, input.value);
+            renderThresholdPreview();
+        });
+    });
+    ["previewWindSpeed", "previewRainfall", "previewVisibility"].forEach(id => {
+        $(id).addEventListener("input", renderThresholdPreview);
+    });
+    document.querySelectorAll("[data-view-target]").forEach(button => {
+        button.addEventListener("click", () => {
+            switchView(button.dataset.viewTarget);
+            if (button.dataset.viewTarget === "riskConfig" && !state.thresholdsLoaded) {
+                loadRiskThresholds();
+            }
+        });
+    });
+    $("alertList").addEventListener("click", event => {
+        const button = event.target.closest(".mark-read");
+        if (button) markAlertRead(button.dataset.alertId);
+    });
+
+    setClock();
+    setInterval(setClock, 1000);
+    syncAllThresholdInputs();
+    renderThresholdPreview();
+    applyScenarioPreset("storm");
+    switchView("dashboard");
+    if (!state.token) openAuth();
+    else {
+        loadRiskThresholds();
+        refreshAll();
+    }
+    state.pollHandle = setInterval(() => {
+        if (state.token && !document.hidden) refreshAll();
+    }, POLL_INTERVAL_MS);
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

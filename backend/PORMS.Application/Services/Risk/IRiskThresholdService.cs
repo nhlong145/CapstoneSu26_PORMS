@@ -13,6 +13,10 @@ public interface IRiskThresholdService
         UpdateRiskThresholdRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<RiskThreshold>> UpdateBatchAsync(
+        BatchUpdateRiskThresholdRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<RiskThresholdPreviewResponse> PreviewAsync(
         RiskThresholdPreviewRequest request,
         CancellationToken cancellationToken = default);

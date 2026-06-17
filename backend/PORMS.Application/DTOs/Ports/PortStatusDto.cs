@@ -1,3 +1,4 @@
+using PORMS.Application.DTOs.Mode;
 using PORMS.Application.DTOs.Risk;
 using PORMS.Application.DTOs.Sop;
 using PORMS.Application.DTOs.Weather;
@@ -57,3 +58,22 @@ public sealed record MarineDataCoverageDto(
     bool HasTideData,
     bool HasCurrentData,
     string Note);
+
+public sealed record PortLiveStatusDto(
+    Guid PortId,
+    string PortCode,
+    string PortName,
+    WeatherReadingDto? LatestWeather,
+    RiskAssessmentDto? LatestRisk,
+    OperationModeLogDto? LatestModeChange,
+    OperationMode CurrentMode,
+    RiskLevel CurrentRiskLevel,
+    string RecommendationCode,
+    string RecommendationText,
+    bool? CanHandleContainers,
+    bool? CanAcceptVesselEntry,
+    IReadOnlyList<string> DecisionReasons,
+    IReadOnlyList<SopRecommendationDto> ActiveSopRecommendations,
+    int UnreadAlertCount,
+    bool IsWeatherDataStale,
+    DateTimeOffset GeneratedAt);

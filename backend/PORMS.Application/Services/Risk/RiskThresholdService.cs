@@ -84,6 +84,73 @@ public sealed class RiskThresholdService : IRiskThresholdService
         return threshold;
     }
 
+    public async Task<IReadOnlyList<RiskThreshold>> UpdateBatchAsync(
+        BatchUpdateRiskThresholdRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.Thresholds.Count == 0)
+        {
+            throw new ArgumentException("At least one threshold update is required.");
+        }
+
+        foreach (var item in request.Thresholds)
+        {
+            if (item.MinValue < 0 || item.MaxValue <= item.MinValue)
+            {
+                throw new ArgumentException("Threshold values must satisfy min >= 0 and max > min when max is provided.");
+            }
+        }
+
+        var ids = request.Thresholds.Select(x => x.Id).Distinct().ToList();
+        var thresholds = await _dbContext.RiskThresholds
+            .Where(x => ids.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
+        if (thresholds.Count != ids.Count)
+        {
+            throw new KeyNotFoundException("One or more risk thresholds were not found.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        foreach (var threshold in thresholds)
+        {
+            var item = request.Thresholds.First(x => x.Id == threshold.Id);
+            threshold.MinValue = item.MinValue;
+            threshold.MaxValue = item.MaxValue;
+            threshold.Description = item.Description ?? threshold.Description;
+            threshold.IsActive = item.IsActive;
+            threshold.UpdatedAt = now;
+        }
+
+        foreach (var factor in thresholds.Select(x => x.Factor).Distinct())
+        {
+            await ValidateNoGapOrOverlapAsync(factor, cancellationToken);
+        }
+
+        _dbContext.OperationEvents.Add(new OperationEvent
+        {
+            Id = Guid.NewGuid(),
+            PortId = null,
+            EventType = OperationEventType.THRESHOLD_UPDATED,
+            Payload = JsonSerializer.Serialize(new
+            {
+                updatedCount = thresholds.Count,
+                factors = thresholds.Select(x => x.Factor.ToString()).Distinct().ToList()
+            }),
+            Summary = $"Risk thresholds batch updated: {thresholds.Count} rows.",
+            OccurredAt = now,
+            IsSimulation = false
+        });
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _thresholdLoader.InvalidateCache();
+
+        return thresholds
+            .OrderBy(x => x.Factor)
+            .ThenBy(x => x.MinValue)
+            .ToList();
+    }
+
     public async Task<RiskThresholdPreviewResponse> PreviewAsync(
         RiskThresholdPreviewRequest request,
         CancellationToken cancellationToken = default)

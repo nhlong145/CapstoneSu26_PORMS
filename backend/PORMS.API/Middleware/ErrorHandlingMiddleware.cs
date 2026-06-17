@@ -24,6 +24,16 @@ namespace PORMS.API.Middleware
             {
                 await _next(context);
             }
+            catch (AuthExceptions ex)
+            {
+                _logger.LogInformation(
+                    "Authentication exception {Code} on {Method} {Path}: {Message}",
+                    ex.Code,
+                    context.Request.Method,
+                    context.Request.Path,
+                    ex.Message);
+                await WriteErrorAsync(context, MapAuthStatus(ex), ex.Code, ex.Message);
+            }
             catch (AppException ex)
             {
                 _logger.LogInformation("App exception {Code} on {Method} {Path}: {Message}",

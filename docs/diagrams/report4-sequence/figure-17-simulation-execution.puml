@@ -1,0 +1,92 @@
+@startuml
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam dpi 180
+skinparam defaultFontName Arial
+skinparam defaultFontSize 10
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowThickness 1
+skinparam sequenceLifeLineBorderColor #555555
+skinparam sequenceLifeLineBackgroundColor white
+skinparam participantBorderColor #555555
+skinparam participantBackgroundColor #F7F7F7
+skinparam participantFontColor #222222
+skinparam actorBorderColor #555555
+skinparam actorFontColor #222222
+skinparam groupBorderColor #777777
+skinparam groupBackgroundColor #FFFDEB
+skinparam noteBorderColor #C5A000
+skinparam noteBackgroundColor #FFF8CC
+hide footbox
+autonumber
+
+actor "ADMIN /\nPORT MANAGER" as User
+participant "SimulationController" as Controller
+participant "SimulationRuntimeService" as Simulation
+database "PostgreSQL\n(Simulation Records)" as DB
+participant "RiskEngine" as Risk
+participant "SopEngine" as SOP
+
+User -> Controller : POST /api/simulation/start\n(port, scenario, snapshots, speed)
+activate Controller
+Controller -> Simulation : StartAsync(request)
+activate Simulation
+Simulation -> Simulation : Validate active port, user,\nminimum 5 snapshots and speed 1..100
+alt Invalid scenario
+  Simulation --> Controller : Validation / not-found error
+  Controller --> User : HTTP 400 / 404
+else Valid scenario
+  Simulation -> DB : Save SimulationSession(RUNNING)\n+ SIMULATION_STARTED event
+  DB --> Simulation : Session committed
+  Simulation --> Controller : SimulationSessionDto
+  Controller --> User : HTTP 201 + sessionId
+  deactivate Controller
+
+  loop Replay each weather snapshot
+    Simulation -> DB : Save WeatherReading\n(dataSource=SIMULATION, isSimulation=true)
+    DB --> Simulation : Snapshot committed
+    Simulation -> Risk : EvaluateRiskAsync(simulated reading)
+    activate Risk
+    Risk -> DB : Save simulated assessment and details
+    alt Simulated risk level changed
+      Risk -> SOP : Handle RiskChangedEvent(isSimulation=true)
+      activate SOP
+      SOP -> DB : Save simulated SOP executions,\nalerts, tasks and mode logs
+      note over SOP,DB
+        Simulation mode logs never update
+        the real ports.current_mode value.
+      end note
+      DB --> SOP : Simulated workflow committed
+      SOP --> Risk : Handling completed
+      deactivate SOP
+    end
+    Risk --> Simulation : Simulated RiskAssessment
+    deactivate Risk
+    Simulation -> Simulation : Update in-memory progress and delay\n(15 minutes / speed multiplier)
+  end
+
+  alt All snapshots replayed
+    Simulation -> DB : Set session COMPLETED\n+ SIMULATION_ENDED event
+  else User requests stop or replay fails
+    User -> Controller : POST /api/simulation/stop
+    activate Controller
+    Controller -> Simulation : StopAsync(sessionId)
+    Simulation -> DB : Set session CANCELLED\n+ SIMULATION_ENDED event
+    Simulation --> Controller : Cancelled session
+    Controller --> User : HTTP 200
+    deactivate Controller
+  end
+
+  User -> Controller : GET /api/simulation/{id}/results
+  activate Controller
+  Controller -> Simulation : GetResultsAsync(sessionId)
+  Simulation -> DB : Aggregate readings, risk distribution,\nSOP executions, alerts and tasks
+  DB --> Simulation : Simulation result data
+  Simulation --> Controller : SimulationResultsDto
+  deactivate Simulation
+  Controller --> User : Render peak risk, counts and distribution
+  deactivate Controller
+end
+@enduml

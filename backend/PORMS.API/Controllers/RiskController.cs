@@ -158,6 +158,27 @@ public sealed class RiskController : ControllerBase
         }
     }
 
+    [HttpPut("thresholds")]
+    [ProducesResponseType<IReadOnlyList<RiskThresholdDto>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<RiskThresholdDto>>> UpdateThresholdsAsync(
+        [FromBody] BatchUpdateRiskThresholdRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var thresholds = await _thresholdService.UpdateBatchAsync(request, cancellationToken);
+            return Ok(thresholds.Select(ToDto).ToList());
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
+
     [HttpPost("thresholds/preview")]
     [ProducesResponseType<RiskThresholdPreviewResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<RiskThresholdPreviewResponse>> PreviewThresholdAsync(

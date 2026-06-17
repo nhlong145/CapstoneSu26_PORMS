@@ -1,7 +1,9 @@
 using System.Text.Json;
 using System.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PORMS.API.Extensions;
 using PORMS.Application.Common.Interfaces;
 using PORMS.Application.DTOs.Weather;
 using PORMS.Application.Services.Risk;
@@ -14,6 +16,7 @@ namespace PORMS.API.Controllers;
 
 [ApiController]
 [Route("api/weather")]
+[Authorize]
 public sealed class WeatherController : ControllerBase
 {
     private const int DefaultPageSize = 20;
@@ -39,6 +42,11 @@ public sealed class WeatherController : ControllerBase
         [FromQuery] Guid portId,
         CancellationToken cancellationToken)
     {
+        if (!HttpContext.IsAuthorizedForPort(portId))
+        {
+            return Forbid();
+        }
+
         var reading = await _dbContext.WeatherReadings
             .AsNoTracking()
             .Where(x => x.PortId == portId && !x.IsSimulation)
@@ -59,6 +67,11 @@ public sealed class WeatherController : ControllerBase
         [FromQuery] int pageSize = DefaultPageSize,
         CancellationToken cancellationToken = default)
     {
+        if (!HttpContext.IsAuthorizedForPort(portId))
+        {
+            return Forbid();
+        }
+
         if (from > to)
         {
             return BadRequest("Query parameter 'from' must be earlier than or equal to 'to'.");
@@ -109,11 +122,17 @@ public sealed class WeatherController : ControllerBase
     }
 
     [HttpPost("manual-input")]
+    [Authorize(Policy = "AdminOrCompanyAdmin")]
     [ProducesResponseType<WeatherReadingDto>(StatusCodes.Status201Created)]
     public async Task<ActionResult<WeatherReadingDto>> CreateManualInputAsync(
         [FromBody] ManualWeatherInputRequest request,
         CancellationToken cancellationToken)
     {
+        if (!HttpContext.IsAuthorizedForPort(request.PortId))
+        {
+            return Forbid();
+        }
+
         if (request.PortId == Guid.Empty ||
             request.WindSpeedMs < 0 ||
             request.Rainfall1hMm < 0 ||
@@ -181,6 +200,7 @@ public sealed class WeatherController : ControllerBase
     }
 
     [HttpPost("fetch-now")]
+    [Authorize(Policy = "AdminOrCompanyAdmin")]
     [ProducesResponseType<WeatherFetchNowResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<WeatherFetchNowResponse>(StatusCodes.Status502BadGateway)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -188,6 +208,11 @@ public sealed class WeatherController : ControllerBase
         [FromQuery] Guid portId,
         CancellationToken cancellationToken)
     {
+        if (!HttpContext.IsAuthorizedForPort(portId))
+        {
+            return Forbid();
+        }
+
         if (portId == Guid.Empty)
         {
             return BadRequest("Query parameter 'portId' is required.");
@@ -279,6 +304,11 @@ public sealed class WeatherController : ControllerBase
         [FromQuery] int pageSize = DefaultPageSize,
         CancellationToken cancellationToken = default)
     {
+        if (!HttpContext.IsAuthorizedForPort(portId))
+        {
+            return Forbid();
+        }
+
         if (from > to)
         {
             return BadRequest("Query parameter 'from' must be earlier than or equal to 'to'.");

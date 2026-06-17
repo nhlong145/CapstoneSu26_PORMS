@@ -1,10 +1,14 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PORMS.API.Extensions;
+using PORMS.Application.Common;
 using PORMS.Application.Common.Interfaces;
 using PORMS.Application.DTOs.Ports;
 using PORMS.Application.DTOs.Risk;
 using PORMS.Application.DTOs.Sop;
 using PORMS.Application.DTOs.Weather;
+using PORMS.Application.Services.DecisionSupport;
 using PORMS.Domain.Entities;
 using PORMS.Domain.Enums;
 
@@ -12,14 +16,19 @@ namespace PORMS.API.Controllers;
 
 [ApiController]
 [Route("api/ports")]
+[Authorize]
 public sealed class PortStatusController : ControllerBase
 {
     private static readonly TimeSpan WeatherStaleAfter = TimeSpan.FromMinutes(30);
     private readonly IApplicationDbContext _dbContext;
+    private readonly IDecisionSupportService _decisionSupportService;
 
-    public PortStatusController(IApplicationDbContext dbContext)
+    public PortStatusController(
+        IApplicationDbContext dbContext,
+        IDecisionSupportService decisionSupportService)
     {
         _dbContext = dbContext;
+        _decisionSupportService = decisionSupportService;
     }
 
     [HttpGet("status")]
@@ -27,9 +36,22 @@ public sealed class PortStatusController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<PortStatusDto>>> GetAllStatusAsync(
         CancellationToken cancellationToken)
     {
-        var portIds = await _dbContext.Ports
+        var portsQuery = _dbContext.Ports
             .AsNoTracking()
-            .Where(x => x.IsActive)
+            .Where(x => x.IsActive);
+
+        if (!IsAdmin())
+        {
+            var assignedPortId = GetAssignedPortId();
+            if (assignedPortId is null)
+            {
+                return Forbid();
+            }
+
+            portsQuery = portsQuery.Where(x => x.Id == assignedPortId.Value);
+        }
+
+        var portIds = await portsQuery
             .OrderBy(x => x.Code)
             .Select(x => x.Id)
             .ToListAsync(cancellationToken);
@@ -48,6 +70,11 @@ public sealed class PortStatusController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PortStatusDto>> GetStatusAsync(Guid id, CancellationToken cancellationToken)
     {
+        if (!HttpContext.IsAuthorizedForPort(id))
+        {
+            return Forbid();
+        }
+
         var exists = await _dbContext.Ports.AsNoTracking().AnyAsync(x => x.Id == id, cancellationToken);
         if (!exists)
         {
@@ -64,6 +91,11 @@ public sealed class PortStatusController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
+        if (!HttpContext.IsAuthorizedForPort(id))
+        {
+            return Forbid();
+        }
+
         var exists = await _dbContext.Ports.AsNoTracking().AnyAsync(x => x.Id == id, cancellationToken);
         if (!exists)
         {
@@ -104,63 +136,34 @@ public sealed class PortStatusController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
-        var port = await _dbContext.Ports
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-        if (port is null)
+        if (!HttpContext.IsAuthorizedForPort(id))
         {
-            return NotFound();
+            return Forbid();
         }
 
-        var latestWeather = await _dbContext.WeatherReadings
-            .AsNoTracking()
-            .Where(x => x.PortId == id && !x.IsSimulation)
-            .OrderByDescending(x => x.ObservedAt)
-            .ThenByDescending(x => x.RecordedAt)
-            .FirstOrDefaultAsync(cancellationToken);
+        var result = await _decisionSupportService.GetDecisionSupportAsync(id, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
 
-        var latestRisk = await _dbContext.RiskAssessments
-            .AsNoTracking()
-            .Where(x => x.PortId == id && !x.IsSimulation)
-            .OrderByDescending(x => x.EvaluatedAt)
-            .FirstOrDefaultAsync(cancellationToken);
+    [HttpGet("{portId:guid}/live-status")]
+    [ProducesResponseType<PortLiveStatusDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PortLiveStatusDto>> GetLiveStatusAsync(
+        Guid portId,
+        [FromQuery] bool includeSimulation = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (!HttpContext.IsAuthorizedForPort(portId))
+        {
+            return Forbid();
+        }
 
-        var currentRisk = latestRisk?.FinalRiskLevel ?? port.CurrentRiskLevel;
-        var isStale = latestWeather is null ||
-            DateTimeOffset.UtcNow - latestWeather.ObservedAt > WeatherStaleAfter;
-
-        var activeSopRecommendations = await BuildRecommendationsAsync(
-            id,
-            currentRisk,
+        var result = await _decisionSupportService.GetLiveStatusAsync(
+            portId,
+            includeSimulation,
             cancellationToken);
-        var decision = BuildDecision(
-            port.CurrentMode,
-            currentRisk,
-            isStale,
-            latestWeather,
-            latestRisk,
-            activeSopRecommendations);
-
-        return Ok(new PortDecisionSupportDto(
-            port.Id,
-            port.Code,
-            port.Name,
-            port.CurrentMode,
-            currentRisk,
-            decision.Code,
-            decision.Text,
-            decision.CanHandleContainers,
-            decision.CanAcceptVesselEntry,
-            decision.Reasons,
-            latestWeather is null ? null : ToWeatherDto(latestWeather),
-            latestRisk is null ? null : ToRiskDto(latestRisk),
-            isStale,
-            new MarineDataCoverageDto(
-                HasWaveData: false,
-                HasTideData: false,
-                HasCurrentData: false,
-                Note: "Current Sprint backend evaluates wind, rain, and visibility. Wave, tide, and sea-current data are planned marine extensions and are not part of the current decision score."),
-            activeSopRecommendations));
+        return result is null ? NotFound() : Ok(result);
     }
 
     private async Task<PortStatusDto> BuildStatusAsync(Guid portId, CancellationToken cancellationToken)
@@ -389,6 +392,18 @@ public sealed class PortStatusController : ControllerBase
             assessment.AssessmentSummary,
             assessment.EvaluatedAt,
             assessment.IsSimulation);
+
+    private bool IsAdmin()
+        => string.Equals(
+            User.FindFirst(ClaimNames.Role)?.Value,
+            nameof(UserRole.ADMIN),
+            StringComparison.Ordinal);
+
+    private Guid? GetAssignedPortId()
+    {
+        var claim = User.FindFirst(ClaimNames.AssignedPortId)?.Value;
+        return Guid.TryParse(claim, out var portId) ? portId : null;
+    }
 
     private sealed record PortDecision(
         string Code,

@@ -32,11 +32,15 @@ public sealed class OperationModeService : IOperationModeService
     {
         var port = await _dbContext.Ports.FirstOrDefaultAsync(x => x.Id == portId, cancellationToken)
             ?? throw new KeyNotFoundException($"Port {portId} was not found.");
+        var effectiveMode = await GetEffectiveModeAsync(
+            port,
+            isSimulation,
+            cancellationToken);
 
-        if (!OperationModeTransitionPolicy.IsAutomaticTransitionAllowed(port.CurrentMode, targetMode))
+        if (!OperationModeTransitionPolicy.IsAutomaticTransitionAllowed(effectiveMode, targetMode))
         {
             throw new InvalidOperationException(
-                $"Automatic mode transition {port.CurrentMode} -> {targetMode} is not allowed.");
+                $"Automatic mode transition {effectiveMode} -> {targetMode} is not allowed.");
         }
 
         return await AddModeLogAsync(
@@ -48,7 +52,8 @@ public sealed class OperationModeService : IOperationModeService
             overrideReason: null,
             changeType: "AUTOMATIC",
             isSimulation,
-            cancellationToken);
+            cancellationToken,
+            previousModeOverride: effectiveMode);
     }
 
     public async Task<IReadOnlyList<OperationModeLog>> ForceStopAsync(
@@ -62,12 +67,14 @@ public sealed class OperationModeService : IOperationModeService
             ?? throw new KeyNotFoundException($"Port {portId} was not found.");
 
         var logs = new List<OperationModeLog>();
-        if (port.CurrentMode == OperationMode.STOP)
+        var effectiveMode = await GetEffectiveModeAsync(
+            port,
+            isSimulation,
+            cancellationToken);
+        if (effectiveMode == OperationMode.STOP)
         {
             return logs;
         }
-
-        var effectiveMode = port.CurrentMode;
 
         if (effectiveMode == OperationMode.NORMAL)
         {
@@ -188,5 +195,24 @@ public sealed class OperationModeService : IOperationModeService
 
         await _dbContext.SaveChangesAsync(cancellationToken);
         return log;
+    }
+
+    private async Task<OperationMode> GetEffectiveModeAsync(
+        Port port,
+        bool isSimulation,
+        CancellationToken cancellationToken)
+    {
+        if (!isSimulation)
+        {
+            return port.CurrentMode;
+        }
+
+        return await _dbContext.OperationModeLogs
+            .AsNoTracking()
+            .Where(x => x.PortId == port.Id && x.IsSimulation)
+            .OrderByDescending(x => x.ChangedAt)
+            .Select(x => (OperationMode?)x.NewMode)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? OperationMode.NORMAL;
     }
 }

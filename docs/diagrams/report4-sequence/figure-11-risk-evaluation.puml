@@ -1,0 +1,78 @@
+@startuml
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam dpi 180
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowThickness 1
+skinparam sequenceLifeLineBorderColor #555555
+skinparam sequenceLifeLineBackgroundColor white
+skinparam participantBorderColor #555555
+skinparam participantBackgroundColor #F7F7F7
+skinparam participantFontColor #222222
+skinparam groupBorderColor #777777
+skinparam groupBackgroundColor #FFFDEB
+skinparam noteBorderColor #C5A000
+skinparam noteBackgroundColor #FFF8CC
+hide footbox
+autonumber
+
+participant "Weather Pipeline" as Caller
+participant "RiskEvaluationService" as Risk
+participant "ThresholdLoader" as Thresholds
+participant "Factor Evaluators\n(Wind / Rain / Visibility)" as Evaluators
+participant "AggregatorService" as Aggregator
+database "PostgreSQL\n(Assessment Repository)" as DB
+participant "DomainEventPublisher" as Publisher
+
+Caller -> Risk : EvaluateAsync(weatherReading)
+activate Risk
+Risk -> Thresholds : GetThresholdsAsync(portId)
+activate Thresholds
+Thresholds -> DB : Load active risk thresholds
+DB --> Thresholds : Threshold records
+alt No configured thresholds
+  Thresholds -> Thresholds : Use controlled fallback thresholds
+end
+Thresholds --> Risk : Effective thresholds
+deactivate Thresholds
+
+Risk -> Evaluators : Evaluate wind, rain and visibility
+activate Evaluators
+Evaluators --> Risk : Three FactorRiskEvaluation results
+deactivate Evaluators
+Risk -> Aggregator : Aggregate(MAX factor level)
+Aggregator --> Risk : Final RiskLevel
+
+Risk -> DB : Load latest assessment\n(same port and simulation context)
+DB --> Risk : Previous assessment or null
+Risk -> Risk : Build summary and set LevelChanged
+Risk -> DB : Save RiskAssessment + 3 details\n+ RISK_ASSESSED event
+
+alt Real weather context
+  Risk -> DB : Update ports.current_risk_level
+else Simulation context
+  note over Risk,DB
+    Keep the real port state unchanged.
+  end note
+end
+
+DB --> Risk : Commit successful
+
+alt Final risk level changed
+  Risk -> DB : Save RISK_LEVEL_CHANGED event
+  Risk -> Publisher : Publish RiskChangedEvent
+  Publisher --> Risk : Event handled
+else Risk level unchanged
+  note over Risk
+    Store the assessment but do not
+    trigger the downstream SOP workflow.
+  end note
+end
+
+Risk --> Caller : RiskAssessment
+deactivate Risk
+@enduml

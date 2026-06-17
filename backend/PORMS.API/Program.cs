@@ -10,6 +10,7 @@ using PORMS.API.Middleware;
 using PORMS.Application.Common.Events;
 using PORMS.Application.Common.Interfaces;
 using PORMS.Application.Services.Alert;
+using PORMS.Application.Services.DecisionSupport;
 using PORMS.Application.Services.Mode;
 using PORMS.Application.Services.Auths;
 using PORMS.Application.Services.Ports;
@@ -74,6 +75,7 @@ builder.Services.AddScoped<IRiskEngine, RiskEngine>();
 builder.Services.AddScoped<IWeatherService, OpenWeatherService>();
 builder.Services.AddScoped<IOperationModeService, OperationModeService>();
 builder.Services.AddScoped<IAlertService, AlertService>();
+builder.Services.AddScoped<IDecisionSupportService, DecisionSupportService>();
 builder.Services.AddScoped<ITaskGeneratorService, TaskGeneratorService>();
 builder.Services.AddScoped<ISopEngine, SopEngine>();
 builder.Services.AddScoped<IDomainEventPublisher, SopDomainEventPublisher>();
@@ -95,7 +97,7 @@ builder.Services.AddHttpClient("OpenWeather", (serviceProvider, client) =>
     client.Timeout = TimeSpan.FromSeconds(configuration.GetValue("OpenWeather:TimeoutSeconds", 10));
 });
 
-//builder.Services.AddHostedService<WeatherUpdateWorker>();
+builder.Services.AddHostedService<WeatherUpdateWorker>();
 
 builder.Services.AddCors(options =>
 {
@@ -199,6 +201,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseCors("FrontendDev");
 
 app.UseAuthentication();

@@ -44,6 +44,17 @@ public sealed class SimulationRuntimeService : ISimulationService
             throw new KeyNotFoundException($"Port {request.PortId} was not found or is inactive.");
         }
 
+        var hasRunningSession = await dbContext.SimulationSessions
+            .AsNoTracking()
+            .AnyAsync(
+                x => x.PortId == request.PortId && x.Status == "RUNNING",
+                cancellationToken);
+        if (hasRunningSession)
+        {
+            throw new InvalidOperationException(
+                "Only one running simulation is allowed per port.");
+        }
+
         var startedByUserId = request.StartedByUserId
             ?? await dbContext.Users
                 .AsNoTracking()
@@ -79,6 +90,17 @@ public sealed class SimulationRuntimeService : ISimulationService
         };
 
         dbContext.SimulationSessions.Add(session);
+        dbContext.OperationModeLogs.Add(new OperationModeLog
+        {
+            Id = Guid.NewGuid(),
+            PortId = session.PortId,
+            PreviousMode = null,
+            NewMode = OperationMode.NORMAL,
+            OverrideReason = "Simulation baseline mode.",
+            ChangeType = "AUTOMATIC",
+            ChangedAt = now,
+            IsSimulation = true
+        });
         dbContext.OperationEvents.Add(new OperationEvent
         {
             Id = Guid.NewGuid(),

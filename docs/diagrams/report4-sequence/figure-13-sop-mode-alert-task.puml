@@ -1,0 +1,90 @@
+@startuml
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam dpi 180
+skinparam defaultFontName Arial
+skinparam defaultFontSize 10
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowThickness 1
+skinparam sequenceLifeLineBorderColor #555555
+skinparam sequenceLifeLineBackgroundColor white
+skinparam participantBorderColor #555555
+skinparam participantBackgroundColor #F7F7F7
+skinparam participantFontColor #222222
+skinparam groupBorderColor #777777
+skinparam groupBackgroundColor #FFFDEB
+skinparam noteBorderColor #C5A000
+skinparam noteBackgroundColor #FFF8CC
+hide footbox
+autonumber
+
+participant "SopDomainEventPublisher" as Publisher
+participant "SopEngine" as SOP
+database "PostgreSQL\n(ApplicationDbContext)" as DB
+participant "TaskGeneratorService" as Task
+participant "AlertService" as Alert
+participant "OperationModeService" as Mode
+
+Publisher -> SOP : HandleRiskChangedAsync(event)
+activate SOP
+SOP -> DB : Load port, active SOP rules\nand matching active zones
+DB --> SOP : Port + ordered rules + zones
+
+loop For each rule and resolved target zone
+  alt No active zone matches the rule
+    SOP -> DB : Save SopExecution(SKIPPED, reason)
+  else Matching target exists
+    SOP -> Task : GenerateAsync(rule, zone, assessment)
+    activate Task
+    Task -> DB : Save TaskLog + TASK_CREATED event
+    DB --> Task : Commit successful
+    Task --> SOP : Task created
+    deactivate Task
+
+    SOP -> Alert : CreateAsync(rule alert)
+    activate Alert
+    Alert -> DB : Check duplicate in 10-minute window
+    DB --> Alert : Duplicate status
+    alt Duplicate non-critical alert exists
+      Alert --> SOP : Alert suppressed
+    else New or CRITICAL alert
+      Alert -> DB : Save Alert + ALERT_CREATED event
+      DB --> Alert : Commit successful
+      Alert --> SOP : Alert created
+    end
+    deactivate Alert
+
+    alt Rule requests LIMITED mode
+      SOP -> Mode : ChangeModeAsync(LIMITED)
+      Mode -> DB : Save mode log + MODE_CHANGED event
+      DB --> Mode : Commit successful
+      Mode --> SOP : Mode changed
+    else Rule requests STOP mode
+      SOP -> Mode : ForceStopAsync()
+      Mode -> DB : Save NORMAL -> LIMITED -> STOP logs\nwhen escalation steps are required
+      DB --> Mode : Commit successful
+      Mode --> SOP : Mode change log(s)
+    else Rule does not change mode
+      note over SOP,Mode
+        Continue without an operation-mode update.
+      end note
+    end
+
+    SOP -> DB : Save SopExecution(EXECUTED)
+  end
+
+  alt Rule processing failure
+    SOP -> DB : Save SopExecution(FAILED, reason)
+    note over SOP
+      Continue with later rules.
+    end note
+  end
+end
+
+SOP -> DB : Save SOP_TRIGGERED summary event\n(executed, skipped, failed counts)
+DB --> SOP : Workflow committed
+SOP --> Publisher : Handling completed
+deactivate SOP
+@enduml

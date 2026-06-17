@@ -1,0 +1,75 @@
+@startuml
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam dpi 180
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowThickness 1
+skinparam sequenceLifeLineBorderColor #555555
+skinparam sequenceLifeLineBackgroundColor white
+skinparam participantBorderColor #555555
+skinparam participantBackgroundColor #F7F7F7
+skinparam participantFontColor #222222
+skinparam actorBorderColor #555555
+skinparam actorFontColor #222222
+skinparam groupBorderColor #777777
+skinparam groupBackgroundColor #FFFDEB
+skinparam noteBorderColor #C5A000
+skinparam noteBackgroundColor #FFF8CC
+hide footbox
+autonumber
+
+actor "PORT MANAGER /\nOPERATOR" as User
+participant "Dashboard" as UI
+participant "JWT / RBAC Middleware" as Auth
+participant "PortStatusController" as Controller
+database "PostgreSQL\n(Operational Data)" as DB
+participant "Decision Mapping" as Decision
+
+User -> UI : Open port decision-support view
+UI -> Auth : GET /api/ports/{id}/decision-support\nwith access token
+activate Auth
+Auth -> Auth : Validate identity, role and assigned port
+alt Unauthorized or another port requested
+  Auth --> UI : HTTP 401 / 403
+  UI --> User : Display access error
+else Authorized
+  Auth -> Controller : Forward authorized request
+  activate Controller
+  Controller -> DB : Load port and current operation mode
+  DB --> Controller : Port state
+  Controller -> DB : Load latest real weather and risk
+  DB --> Controller : WeatherReading + RiskAssessment
+  Controller -> DB : Load active zones and SOP rules\nmatching current risk
+  DB --> Controller : Zone-specific recommendations
+
+  Controller -> Decision : Check staleness and map a conservative decision
+  activate Decision
+  alt Weather missing or older than 30 minutes
+    Decision --> Controller : VERIFY_WEATHER_DATA
+  else Mode STOP or risk CRITICAL
+    Decision --> Controller : STOP_OPERATIONS
+  else Mode LIMITED or risk HIGH
+    Decision --> Controller : RESTRICT_OPERATIONS
+  else Risk MEDIUM
+    Decision --> Controller : OPERATE_WITH_CAUTION
+  else Risk LOW and mode NORMAL
+    Decision --> Controller : OPERATE_NORMALLY
+  end
+  deactivate Decision
+
+  Controller --> Auth : PortDecisionSupportDto\n(decision, evidence, SOP recommendations)
+  deactivate Controller
+  Auth --> UI : HTTP 200 response
+  UI --> User : Render weather, risk, mode,\nreasons and operational guidance
+end
+deactivate Auth
+
+note over UI,Decision
+  The recommendation supports human decision-making.
+  It is not a guarantee of operational safety.
+end note
+@enduml
