@@ -157,6 +157,11 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        <p className="mt-4 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+          Tài khoản test nhóm: <strong className="text-slate-700">admin@porms.vn</strong> /{' '}
+          <strong className="text-slate-700">Admin@2026!</strong> (ADMIN)
+        </p>
       </div>
     </div>
   )

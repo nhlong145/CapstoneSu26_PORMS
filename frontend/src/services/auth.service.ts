@@ -60,10 +60,6 @@ export function clearUserSession(): void {
 }
 
 export async function login(request: LoginRequest): Promise<LoginResponse> {
-  if (isDevTestCredentials(request.email, request.password)) {
-    return createDevTestLoginResponse()
-  }
-
   try {
     const { data } = await api.post<LoginResponse & { user: { role: string } }>('/api/auth/login', request)
     return mapLoginResponse(data)
